@@ -47,7 +47,7 @@
         "Build succeeds"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "RootView.swift already has a CHALLENGE button placeholder. GameMode enum already exists with .classic case - add .challenge(ChallengeCode)."
     },
     {

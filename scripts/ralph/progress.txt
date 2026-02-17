@@ -36,3 +36,18 @@ Started: 2026-02-16
   - Target score limited to UInt16 (65535) - should be plenty for this game
   - Always run xcodegen generate after adding new .swift files
 ---
+## 2026-02-16 15:45 - US-003
+- Extended GameMode enum to include .challenge(ChallengeCode)
+- Added challenge code input UI with ChallengeInputSheet
+- GameContainerView now accepts mode and passes seed/targetScore to GameScene
+- GameScene displays target score in HUD during challenge mode (e.g., "5 / 10")
+- After classic run, challenge code is generated and displayed below buttons
+- CHALLENGE button opens sheet to enter/paste a challenge code
+- Files changed: RootView.swift, GameContainerView.swift, GameScene.swift
+- Build succeeded
+- **Learnings for future iterations:**
+  - GameScene needs targetScore property to display challenge target
+  - onGameOver callback now passes both score and seed for code generation
+  - Score label dynamically sized (42pt classic, 36pt challenge) to fit target
+  - SwiftUI sheet with .dismiss() environment for modal presentation
+---

@@ -25,6 +25,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
   private var lastUpdate: TimeInterval = 0
   private var spawnAccumulator: TimeInterval = 0
+  private var gameStartTime: TimeInterval = 0
+  private(set) var tapTimestamps: [TimeInterval] = []
 
   private var rng: GKMersenneTwisterRandomSource!
 
@@ -53,6 +55,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     removeAllChildren()
     isDead = false
     score = 0
+    tapTimestamps = []
 
     // Initialize seeded RNG
     rng = GKMersenneTwisterRandomSource(seed: seed)
@@ -133,6 +136,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
       return
     }
 
+    // Record tap timestamp relative to game start
+    let relativeTime = lastUpdate - gameStartTime
+    tapTimestamps.append(relativeTime)
+
     Haptics.flap()
     audio.playFlap()
 
@@ -148,7 +155,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
   }
 
   override func update(_ currentTime: TimeInterval) {
-    if lastUpdate == 0 { lastUpdate = currentTime }
+    if lastUpdate == 0 {
+      lastUpdate = currentTime
+      gameStartTime = currentTime
+    }
     let dt = currentTime - lastUpdate
     lastUpdate = currentTime
 
