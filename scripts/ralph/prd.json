@@ -93,7 +93,7 @@
         "Build succeeds"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": "The code will be longer with tap data. Consider compressing the timestamps (delta encoding + base64). Keep it under ~200 chars if possible."
     },
     {

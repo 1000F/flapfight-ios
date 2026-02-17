@@ -11,6 +11,7 @@
 		33E7F20B3BC9A0A9EB280401 /* GameFX.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECD5779411852AF86A609798 /* GameFX.swift */; };
 		42BEC4AB9740277A8A1530A6 /* GameScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 275E7B92F01EE395A723482A /* GameScene.swift */; };
 		844EA46115C7E0C5F3A2A016 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F17F1A3077AE95466B2264A /* RootView.swift */; };
+		916F3BFE68D52246DC15AA00 /* ShareCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE6C8A7F47F36844BCB4806F /* ShareCard.swift */; };
 		94329916326C8D1D513719DF /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C4E0E1ABB2D9422C2A82ED /* App.swift */; };
 		CA16A71A6B956CBBF22C7BDD /* ChallengeCode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CD1DEACCB065764372FC23D /* ChallengeCode.swift */; };
 /* End PBXBuildFile section */
@@ -24,6 +25,7 @@
 		8CD1DEACCB065764372FC23D /* ChallengeCode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeCode.swift; sourceTree = "<group>"; };
 		DC164BAA3B2C798FD567D5FF /* FlapFight.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FlapFight.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		ECD5779411852AF86A609798 /* GameFX.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameFX.swift; sourceTree = "<group>"; };
+		EE6C8A7F47F36844BCB4806F /* ShareCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCard.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -42,6 +44,7 @@
 			children = (
 				5A9E0E7269ACC7CCB3CD8104 /* GameContainerView.swift */,
 				2F17F1A3077AE95466B2264A /* RootView.swift */,
+				EE6C8A7F47F36844BCB4806F /* ShareCard.swift */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -132,6 +135,7 @@
 				33E7F20B3BC9A0A9EB280401 /* GameFX.swift in Sources */,
 				42BEC4AB9740277A8A1530A6 /* GameScene.swift in Sources */,
 				844EA46115C7E0C5F3A2A016 /* RootView.swift in Sources */,
+				916F3BFE68D52246DC15AA00 /* ShareCard.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

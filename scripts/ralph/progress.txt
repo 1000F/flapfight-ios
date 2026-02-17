@@ -79,3 +79,19 @@ Started: 2026-02-16
   - Track ghostTapIndex to iterate through tap timestamps
   - Check ghost bounds each frame and remove if dead
 ---
+## 2026-02-16 16:00 - US-006
+- Extended ChallengeCode to include tapTimestamps array
+- Implemented delta encoding for tap timestamps (2 bytes per tap as milliseconds)
+- Challenge code format: seed (8B) + score (2B) + tap count (1B) + deltas (2B each)
+- Updated encode() and decode() to handle tap data compression
+- RootView passes tapTimestamps when generating challenge code
+- GameContainerView passes ghostTapTimestamps to GameScene in challenge mode
+- onGameOver callback now includes tap timestamps
+- Files changed: ChallengeCode.swift, RootView.swift, GameContainerView.swift
+- Build succeeded
+- **Learnings for future iterations:**
+  - Delta encoding significantly reduces size (2 bytes per tap vs 8 bytes raw)
+  - Max 255 taps supported (1 byte count), UInt16 milliseconds allows up to 65s between taps
+  - Challenge code length varies with tap count but stays reasonable (~30-60 chars typical)
+  - Ghost automatically appears in challenge mode via ghostTapTimestamps
+---
