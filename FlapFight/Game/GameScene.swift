@@ -15,6 +15,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
   var seed: UInt64 = UInt64.random(in: 0...UInt64.max)
   var targetScore: Int? = nil
   var ghostTapTimestamps: [TimeInterval]? = nil
+  var bestScore: Int = 0
   var onGameOver: ((Int) -> Void)?
   var onRestartRequested: (() -> Void)?
 
@@ -682,28 +683,102 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
   }
 
   private func showDeathOverlay() {
-    let overlay = SKShapeNode(rectOf: CGSize(width: size.width - 40, height: 160), cornerRadius: 18)
+    let isNewBest = score > bestScore
+    let isChallengeWin = targetScore != nil && score >= targetScore!
+    let isChallengeMode = targetScore != nil
+
+    // Determine overlay height based on content
+    let overlayHeight: CGFloat = isNewBest || isChallengeMode ? 200 : 160
+
+    let overlay = SKShapeNode(rectOf: CGSize(width: size.width - 40, height: overlayHeight), cornerRadius: 18)
     overlay.fillColor = SKColor(white: 0, alpha: 0.35)
     overlay.strokeColor = SKColor(white: 1, alpha: 0.12)
     overlay.lineWidth = 1
-    overlay.position = CGPoint(x: size.width / 2, y: size.height / 2)
     overlay.zPosition = 20
 
-    let title = SKLabelNode(text: "DEAD")
-    title.fontSize = 28
-    title.fontColor = SKColor.white.withAlphaComponent(0.9)
-    title.position = CGPoint(x: 0, y: 22)
-    title.zPosition = 21
-
-    let sub = SKLabelNode(text: "Score \(score)  •  Tap to restart")
-    sub.fontSize = 14
-    sub.fontColor = SKColor.white.withAlphaComponent(0.65)
-    sub.position = CGPoint(x: 0, y: -18)
-    sub.zPosition = 21
-
-    overlay.addChild(title)
-    overlay.addChild(sub)
+    // Start below screen for slide-up animation
+    let finalY = size.height / 2
+    overlay.position = CGPoint(x: size.width / 2, y: -overlayHeight)
     addChild(overlay)
+
+    // Slide up with bounce animation
+    let slideUp = SKAction.moveTo(y: finalY, duration: 0.4)
+    slideUp.timingMode = .easeOut
+    let bounce = SKAction.sequence([
+      SKAction.moveBy(x: 0, y: 12, duration: 0.1),
+      SKAction.moveBy(x: 0, y: -12, duration: 0.1)
+    ])
+    bounce.timingMode = .easeInEaseOut
+    overlay.run(SKAction.sequence([slideUp, bounce]))
+
+    var yOffset: CGFloat = overlayHeight / 2 - 30
+
+    // NEW BEST badge (if applicable)
+    if isNewBest {
+      let bestBadge = SKLabelNode(text: "NEW BEST!")
+      bestBadge.fontSize = 18
+      bestBadge.fontColor = SKColor(red: 1.0, green: 0.85, blue: 0.2, alpha: 1.0)  // Gold/yellow
+      bestBadge.position = CGPoint(x: 0, y: yOffset)
+      bestBadge.zPosition = 21
+      overlay.addChild(bestBadge)
+      yOffset -= 28
+    }
+
+    // Main title (conditional based on mode)
+    let titleText: String
+    let titleColor: SKColor
+
+    if isChallengeMode {
+      if isChallengeWin {
+        titleText = "YOU WIN!"
+        titleColor = SKColor(red: 0.2, green: 1.0, blue: 0.4, alpha: 1.0)  // Bright green
+      } else {
+        titleText = "SO CLOSE!"
+        titleColor = SKColor(red: 1.0, green: 0.6, blue: 0.2, alpha: 1.0)  // Orange
+      }
+    } else {
+      titleText = "DEAD"
+      titleColor = SKColor.white.withAlphaComponent(0.9)
+    }
+
+    let title = SKLabelNode(text: titleText)
+    title.fontSize = 32
+    title.fontColor = titleColor
+    title.position = CGPoint(x: 0, y: yOffset)
+    title.zPosition = 21
+    overlay.addChild(title)
+    yOffset -= 42
+
+    // Score display (prominent)
+    let scoreText: String
+    if let target = targetScore {
+      scoreText = "\(score) / \(target)"
+    } else {
+      scoreText = "\(score)"
+    }
+
+    let scoreDisplay = SKLabelNode(text: scoreText)
+    scoreDisplay.fontSize = 38
+    scoreDisplay.fontColor = SKColor.white.withAlphaComponent(0.95)
+    scoreDisplay.position = CGPoint(x: 0, y: yOffset)
+    scoreDisplay.zPosition = 21
+    overlay.addChild(scoreDisplay)
+    yOffset -= 46
+
+    // Tap to restart text (with pulsing animation)
+    let restartHint = SKLabelNode(text: "Tap to restart")
+    restartHint.fontSize = 14
+    restartHint.fontColor = SKColor.white.withAlphaComponent(0.65)
+    restartHint.position = CGPoint(x: 0, y: yOffset)
+    restartHint.zPosition = 21
+    overlay.addChild(restartHint)
+
+    // Pulse animation for restart hint
+    let pulseSequence = SKAction.sequence([
+      SKAction.fadeAlpha(to: 0.35, duration: 0.8),
+      SKAction.fadeAlpha(to: 0.65, duration: 0.8)
+    ])
+    restartHint.run(SKAction.repeatForever(pulseSequence))
   }
 
   // MARK: - Particle effects
