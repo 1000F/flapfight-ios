@@ -277,7 +277,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
       ghostTapIndex = 0
     }
 
-    // Score label
+    // Score label (hidden until game starts)
     if let target = targetScore {
       scoreLabel = SKLabelNode(text: "0 / \(target)")
       scoreLabel.fontSize = 36
@@ -288,16 +288,24 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     scoreLabel.fontColor = SKColor.white.withAlphaComponent(0.9)
     scoreLabel.position = CGPoint(x: size.width/2, y: size.height - 90)
     scoreLabel.zPosition = 5
+    scoreLabel.alpha = 0  // Hidden during ready state
     addChild(scoreLabel)
 
-    // Instructions
+    // Instructions (pulsing TAP hint)
     let hint = SKLabelNode(text: "TAP")
-    hint.fontSize = 14
-    hint.fontColor = SKColor.white.withAlphaComponent(0.55)
+    hint.fontSize = 24
+    hint.fontColor = SKColor.white.withAlphaComponent(0.7)
     hint.position = CGPoint(x: size.width/2, y: size.height - 130)
     hint.zPosition = 5
     hint.name = "hint"
     addChild(hint)
+
+    // Pulsing animation for TAP hint
+    let pulse = SKAction.sequence([
+      SKAction.fadeAlpha(to: 0.4, duration: 0.75),
+      SKAction.fadeAlpha(to: 1.0, duration: 0.75)
+    ])
+    hint.run(SKAction.repeatForever(pulse), withKey: "pulse")
 
     // Camera (for screen shake)
     let cam = SKCameraNode()
@@ -323,7 +331,18 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
       bird.physicsBody?.isDynamic = true
       ghostBird?.physicsBody?.isDynamic = true
       bird.removeAction(forKey: "bob")
-      childNode(withName: "hint")?.removeFromParent()
+
+      // Fade out hint text over 200ms instead of instant removal
+      if let hint = childNode(withName: "hint") {
+        hint.run(SKAction.sequence([
+          SKAction.fadeOut(withDuration: 0.2),
+          SKAction.removeFromParent()
+        ]))
+      }
+
+      // Show score label with fade-in
+      scoreLabel.run(SKAction.fadeIn(withDuration: 0.2))
+
       Haptics.flap()
       audio.playFlap()
       return
@@ -359,7 +378,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     let dt = currentTime - lastUpdate
     lastUpdate = currentTime
 
-    if isDead || !hasStarted { return }
+    if isDead { return }
+    if !hasStarted {
+      // Don't spawn pipes or scroll anything until game starts
+      return
+    }
 
     // Ghost replay
     if let timestamps = ghostTapTimestamps,
