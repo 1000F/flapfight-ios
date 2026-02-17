@@ -17,7 +17,7 @@
         "Build succeeds"
       ],
       "priority": 1,
-      "passes": true,
+      "passes": false,
       "notes": "GameScene.swift lines 6-11 for tunables, lines 93-96 for damping. Test by feel — bird should reach apex quickly after tap and fall decisively."
     },
     {
@@ -35,7 +35,7 @@
         "Build succeeds"
       ],
       "priority": 2,
-      "passes": true,
+      "passes": false,
       "notes": "Use SKShapeNode with CGPath for the beak and wing. Add the eye as a small filled circle child node. The wing can be an arc or triangle that rotates on tap."
     },
     {
@@ -51,7 +51,7 @@
         "Build succeeds"
       ],
       "priority": 3,
-      "passes": true,
+      "passes": false,
       "notes": "GameScene.swift pipeNode() at line 311-326. End caps are a child SKShapeNode positioned at the gap-facing edge. Keep cornerRadius on main body."
     },
     {
@@ -67,7 +67,7 @@
         "Build succeeds"
       ],
       "priority": 4,
-      "passes": true,
+      "passes": false,
       "notes": "Create two side-by-side ground rectangles. In update(), move both left. When one goes fully off-screen, reposition it to the right of the other."
     },
     {
@@ -84,7 +84,7 @@
         "Build succeeds"
       ],
       "priority": 5,
-      "passes": true,
+      "passes": false,
       "notes": "Create each layer as a wide SKShapeNode or set of small nodes. Scroll in update() using scaledDt multiplied by the layer's speed factor."
     },
     {
@@ -100,7 +100,7 @@
         "Build succeeds"
       ],
       "priority": 6,
-      "passes": true,
+      "passes": false,
       "notes": "Create helper method makeEmitter(color:count:speed:lifetime:). Call from didBegin() for score, triggerNearMiss() for near-miss, and die() for death. Set emitter.targetNode = self."
     },
     {
@@ -117,7 +117,7 @@
         "Build succeeds"
       ],
       "priority": 7,
-      "passes": true,
+      "passes": false,
       "notes": "GameFX.swift GameAudio class. Extend tone() to support freq sweeps (lerp freq over time), chords (sum waveforms), exponential envelopes (pow(1-t/dur, 2))."
     },
     {
@@ -134,7 +134,7 @@
         "Build succeeds"
       ],
       "priority": 8,
-      "passes": true,
+      "passes": false,
       "notes": "showDeathOverlay() in GameScene.swift. Add a bestScore property to GameScene so it can detect new records. Pass bestScore from RootView via GameContainerView."
     },
     {
@@ -149,7 +149,7 @@
         "Build succeeds"
       ],
       "priority": 9,
-      "passes": true,
+      "passes": false,
       "notes": "GameScene.swift buildScene() for hint creation, handleTap() for removal. Use SKAction.repeatForever for pulse."
     },
     {
@@ -162,7 +162,7 @@
         "Build succeeds"
       ],
       "priority": 10,
-      "passes": true,
+      "passes": false,
       "notes": "Add canRestart flag, set false on death, true after 0.8s SKAction delay. Check in handleTap()."
     },
     {

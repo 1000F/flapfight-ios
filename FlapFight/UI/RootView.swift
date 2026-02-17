@@ -38,6 +38,7 @@ struct RootView: View {
         GameContainerView(
           id: gameID,
           mode: mode,
+          bestScore: bestScore,
           onGameOver: { score, seed, tapTimestamps in
             lastScore = score
             if score > bestScore {

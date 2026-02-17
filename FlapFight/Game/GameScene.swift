@@ -3,17 +3,19 @@ import GameplayKit
 
 final class GameScene: SKScene, SKPhysicsContactDelegate {
   // MARK: - Tunables
-  private let gravity: CGFloat = -7.5
-  private let flapImpulse: CGFloat = 250
+  private let gravity: CGFloat = -9.8
+  private let flapImpulse: CGFloat = 185
   private let scrollSpeed: CGFloat = 160
   private let pipeGap: CGFloat = 170
   private let pipeWidth: CGFloat = 64
   private let pipeSpawnEvery: TimeInterval = 1.35
+  private let maxFallSpeed: CGFloat = 500
 
   // MARK: - State
   var seed: UInt64 = UInt64.random(in: 0...UInt64.max)
   var targetScore: Int? = nil
   var ghostTapTimestamps: [TimeInterval]? = nil
+  var bestScore: Int = 0
   var onGameOver: ((Int) -> Void)?
   var onRestartRequested: (() -> Void)?
 
@@ -21,8 +23,15 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
   private var ghostBird: SKShapeNode?
   private var ghostTapIndex = 0
   private var ground = SKNode()
+  private var groundVisual1 = SKShapeNode()
+  private var groundVisual2 = SKShapeNode()
+  private var farLayer1 = SKShapeNode()
+  private var farLayer2 = SKShapeNode()
+  private var midLayer1 = SKShapeNode()
+  private var midLayer2 = SKShapeNode()
   private var isDead = false
   private var hasStarted = false
+  private var canRestart = false
 
   private var score = 0
   private var scoreLabel = SKLabelNode(fontNamed: nil)
@@ -55,9 +64,115 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     buildScene()
   }
 
+  private func makeBirdNode() -> SKShapeNode {
+    // Main body - circular
+    let container = SKShapeNode(circleOfRadius: 18)
+    container.fillColor = SKColor.white.withAlphaComponent(0.92)
+    container.strokeColor = SKColor.red.withAlphaComponent(0.55)
+    container.lineWidth = 2.5
+
+    // Eye - small black dot
+    let eye = SKShapeNode(circleOfRadius: 3)
+    eye.fillColor = .black
+    eye.strokeColor = .clear
+    eye.position = CGPoint(x: 7, y: 5)
+    eye.name = "eye"
+    container.addChild(eye)
+
+    // Beak - small triangle
+    let beakPath = CGMutablePath()
+    beakPath.move(to: CGPoint(x: 14, y: 0))
+    beakPath.addLine(to: CGPoint(x: 22, y: 2))
+    beakPath.addLine(to: CGPoint(x: 22, y: -2))
+    beakPath.closeSubpath()
+
+    let beak = SKShapeNode(path: beakPath)
+    beak.fillColor = SKColor(red: 1.0, green: 0.6, blue: 0.2, alpha: 0.9)
+    beak.strokeColor = .clear
+    beak.name = "beak"
+    container.addChild(beak)
+
+    // Wing - arc shape that will animate
+    let wingPath = CGMutablePath()
+    wingPath.move(to: CGPoint(x: -8, y: -2))
+    wingPath.addCurve(
+      to: CGPoint(x: -8, y: -12),
+      control1: CGPoint(x: -14, y: -4),
+      control2: CGPoint(x: -14, y: -10)
+    )
+    wingPath.addLine(to: CGPoint(x: -8, y: -2))
+
+    let wing = SKShapeNode(path: wingPath)
+    wing.fillColor = SKColor.white.withAlphaComponent(0.8)
+    wing.strokeColor = SKColor.red.withAlphaComponent(0.4)
+    wing.lineWidth = 1.5
+    wing.name = "wing"
+    container.addChild(wing)
+
+    return container
+  }
+
+  private func makeGroundNode(width: CGFloat, height: CGFloat) -> SKShapeNode {
+    let ground = SKShapeNode(rectOf: CGSize(width: width, height: height))
+    ground.fillColor = SKColor.white.withAlphaComponent(0.20)
+    ground.strokeColor = .clear
+    ground.name = "groundVisual"
+
+    // Brighter top edge line
+    let topLine = SKShapeNode(rectOf: CGSize(width: width, height: 2))
+    topLine.fillColor = SKColor.white.withAlphaComponent(0.6)
+    topLine.strokeColor = .clear
+    topLine.position = CGPoint(x: 0, y: height / 2)
+    ground.addChild(topLine)
+
+    return ground
+  }
+
+  private func makeFarParallaxLayer(width: CGFloat, height: CGFloat) -> SKShapeNode {
+    let container = SKShapeNode(rectOf: CGSize(width: width, height: height))
+    container.fillColor = .clear
+    container.strokeColor = .clear
+    container.name = "farLayer"
+
+    // Add horizontal lines at various heights
+    let lineCount = 8
+    for i in 0..<lineCount {
+      let y = (CGFloat(i) / CGFloat(lineCount - 1)) * height - height / 2
+      let line = SKShapeNode(rectOf: CGSize(width: width, height: 1))
+      line.fillColor = SKColor.white.withAlphaComponent(0.05)
+      line.strokeColor = .clear
+      line.position = CGPoint(x: 0, y: y)
+      container.addChild(line)
+    }
+
+    return container
+  }
+
+  private func makeMidParallaxLayer(width: CGFloat, height: CGFloat) -> SKShapeNode {
+    let container = SKShapeNode(rectOf: CGSize(width: width, height: height))
+    container.fillColor = .clear
+    container.strokeColor = .clear
+    container.name = "midLayer"
+
+    // Add subtle circular shapes scattered across the layer
+    let dotCount = 12
+    for i in 0..<dotCount {
+      let x = (CGFloat(i) / CGFloat(dotCount - 1)) * width - width / 2
+      let y = CGFloat.random(in: -height/2...height/2)
+      let dot = SKShapeNode(circleOfRadius: 3)
+      dot.fillColor = SKColor.white.withAlphaComponent(0.12)
+      dot.strokeColor = .clear
+      dot.position = CGPoint(x: x, y: y)
+      container.addChild(dot)
+    }
+
+    return container
+  }
+
   private func buildScene() {
     removeAllChildren()
     isDead = false
+    canRestart = false
     score = 0
     tapTimestamps = []
 
@@ -71,6 +186,28 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     bg.zPosition = -10
     addChild(bg)
 
+    // Far parallax layer (very faint horizontal lines, slowest)
+    farLayer1 = makeFarParallaxLayer(width: size.width, height: size.height)
+    farLayer1.position = CGPoint(x: size.width / 2, y: size.height / 2)
+    farLayer1.zPosition = -9
+    addChild(farLayer1)
+
+    farLayer2 = makeFarParallaxLayer(width: size.width, height: size.height)
+    farLayer2.position = CGPoint(x: size.width * 1.5, y: size.height / 2)
+    farLayer2.zPosition = -9
+    addChild(farLayer2)
+
+    // Mid parallax layer (slightly brighter dots, medium speed)
+    midLayer1 = makeMidParallaxLayer(width: size.width, height: size.height)
+    midLayer1.position = CGPoint(x: size.width / 2, y: size.height / 2)
+    midLayer1.zPosition = -5
+    addChild(midLayer1)
+
+    midLayer2 = makeMidParallaxLayer(width: size.width, height: size.height)
+    midLayer2.position = CGPoint(x: size.width * 1.5, y: size.height / 2)
+    midLayer2.zPosition = -5
+    addChild(midLayer2)
+
     // Ground (invisible collider)
     ground = SKNode()
     ground.position = CGPoint(x: 0, y: 40)
@@ -82,18 +219,28 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     ground.physicsBody = groundBody
     addChild(ground)
 
+    // Visual ground (scrolling)
+    let groundHeight: CGFloat = 40
+    let groundY: CGFloat = 40
+    groundVisual1 = makeGroundNode(width: size.width, height: groundHeight)
+    groundVisual1.position = CGPoint(x: size.width / 2, y: groundY)
+    groundVisual1.zPosition = -2
+    addChild(groundVisual1)
+
+    groundVisual2 = makeGroundNode(width: size.width, height: groundHeight)
+    groundVisual2.position = CGPoint(x: size.width * 1.5, y: groundY)
+    groundVisual2.zPosition = -2
+    addChild(groundVisual2)
+
     // Bird
     let birdRadius: CGFloat = 18
-    bird = SKShapeNode(circleOfRadius: birdRadius)
-    bird.fillColor = SKColor.white.withAlphaComponent(0.92)
-    bird.strokeColor = SKColor.red.withAlphaComponent(0.55)
-    bird.lineWidth = 2.5
+    bird = makeBirdNode()
     bird.position = CGPoint(x: size.width * 0.34, y: size.height * 0.55)
 
     let birdBody = SKPhysicsBody(circleOfRadius: birdRadius)
     birdBody.allowsRotation = true
-    birdBody.linearDamping = 0.1
-    birdBody.angularDamping = 0.9
+    birdBody.linearDamping = 0.3
+    birdBody.angularDamping = 0.5
     birdBody.categoryBitMask = Category.bird
     birdBody.collisionBitMask = Category.pipe | Category.ground
     birdBody.contactTestBitMask = Category.pipe | Category.score | Category.ground
@@ -103,18 +250,25 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     addChild(bird)
     hasStarted = false
 
+    // Gentle bob animation during ready state
+    let bob = SKAction.sequence([
+      SKAction.moveBy(x: 0, y: 3, duration: 0.25),
+      SKAction.moveBy(x: 0, y: -3, duration: 0.25)
+    ])
+    bird.run(SKAction.repeatForever(bob), withKey: "bob")
+
     // Ghost bird (if replay data provided)
     if let _ = ghostTapTimestamps {
       ghostBird = SKShapeNode(circleOfRadius: 18)
-      ghostBird!.fillColor = SKColor.cyan.withAlphaComponent(0.30)
+      ghostBird!.fillColor = SKColor.cyan.withAlphaComponent(0.50)
       ghostBird!.strokeColor = SKColor.cyan.withAlphaComponent(0.50)
       ghostBird!.lineWidth = 2
       ghostBird!.position = CGPoint(x: size.width * 0.34, y: size.height * 0.55)
 
       let ghostBody = SKPhysicsBody(circleOfRadius: 18)
       ghostBody.allowsRotation = true
-      ghostBody.linearDamping = 0.1
-      ghostBody.angularDamping = 0.9
+      ghostBody.linearDamping = 0.3
+      ghostBody.angularDamping = 0.5
       ghostBody.categoryBitMask = 0 // No category
       ghostBody.collisionBitMask = 0 // Pass through everything
       ghostBody.contactTestBitMask = 0 // No contacts
@@ -125,7 +279,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
       ghostTapIndex = 0
     }
 
-    // Score label
+    // Score label (hidden until game starts)
     if let target = targetScore {
       scoreLabel = SKLabelNode(text: "0 / \(target)")
       scoreLabel.fontSize = 36
@@ -136,16 +290,53 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     scoreLabel.fontColor = SKColor.white.withAlphaComponent(0.9)
     scoreLabel.position = CGPoint(x: size.width/2, y: size.height - 90)
     scoreLabel.zPosition = 5
+    scoreLabel.alpha = 0  // Hidden during ready state
     addChild(scoreLabel)
 
-    // Instructions
+    // Instructions (pulsing TAP hint)
     let hint = SKLabelNode(text: "TAP")
-    hint.fontSize = 14
-    hint.fontColor = SKColor.white.withAlphaComponent(0.55)
+    hint.fontSize = 24
+    hint.fontColor = SKColor.white.withAlphaComponent(0.7)
     hint.position = CGPoint(x: size.width/2, y: size.height - 130)
     hint.zPosition = 5
     hint.name = "hint"
     addChild(hint)
+
+    // Pulsing animation for TAP hint
+    let pulse = SKAction.sequence([
+      SKAction.fadeAlpha(to: 0.4, duration: 0.75),
+      SKAction.fadeAlpha(to: 1.0, duration: 0.75)
+    ])
+    hint.run(SKAction.repeatForever(pulse), withKey: "pulse")
+
+    // Challenge mode intro messaging
+    if let target = targetScore {
+      let challengeIntro = SKLabelNode(text: "Beat \(target)!")
+      challengeIntro.fontSize = 18
+      challengeIntro.fontColor = SKColor(red: 1.0, green: 0.6, blue: 0.2, alpha: 0.9)
+      challengeIntro.position = CGPoint(x: size.width/2, y: size.height/2 + 40)
+      challengeIntro.zPosition = 5
+      challengeIntro.name = "challengeIntro"
+      addChild(challengeIntro)
+
+      // Ghost bird label (shown briefly at start)
+      if ghostBird != nil {
+        let ghostLabel = SKLabelNode(text: "Ghost: Target Run")
+        ghostLabel.fontSize = 13
+        ghostLabel.fontColor = SKColor.cyan.withAlphaComponent(0.75)
+        ghostLabel.position = CGPoint(x: size.width/2, y: size.height/2 + 10)
+        ghostLabel.zPosition = 5
+        ghostLabel.name = "ghostLabel"
+        addChild(ghostLabel)
+
+        // Fade out ghost label after 3 seconds
+        ghostLabel.run(SKAction.sequence([
+          SKAction.wait(forDuration: 3.0),
+          SKAction.fadeOut(withDuration: 0.5),
+          SKAction.removeFromParent()
+        ]))
+      }
+    }
 
     // Camera (for screen shake)
     let cam = SKCameraNode()
@@ -161,6 +352,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
   func handleTap() {
     if isDead {
+      // Prevent restart during cooldown period
+      if !canRestart { return }
       onRestartRequested?()
       return
     }
@@ -170,7 +363,19 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
       hasStarted = true
       bird.physicsBody?.isDynamic = true
       ghostBird?.physicsBody?.isDynamic = true
-      childNode(withName: "hint")?.removeFromParent()
+      bird.removeAction(forKey: "bob")
+
+      // Fade out hint text over 200ms instead of instant removal
+      if let hint = childNode(withName: "hint") {
+        hint.run(SKAction.sequence([
+          SKAction.fadeOut(withDuration: 0.2),
+          SKAction.removeFromParent()
+        ]))
+      }
+
+      // Show score label with fade-in
+      scoreLabel.run(SKAction.fadeIn(withDuration: 0.2))
+
       Haptics.flap()
       audio.playFlap()
       return
@@ -186,6 +391,14 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     // flap
     bird.physicsBody?.velocity = CGVector(dx: 0, dy: 0)
     bird.physicsBody?.applyImpulse(CGVector(dx: 0, dy: flapImpulse))
+
+    // Animate wing
+    if let wing = bird.childNode(withName: "wing") {
+      wing.run(SKAction.sequence([
+        SKAction.rotate(byAngle: -0.6, duration: 0.05),
+        SKAction.rotate(byAngle: 0.6, duration: 0.05)
+      ]))
+    }
   }
 
   // Taps handled via SwiftUI onTapGesture → handleTap()
@@ -198,7 +411,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     let dt = currentTime - lastUpdate
     lastUpdate = currentTime
 
-    if isDead || !hasStarted { return }
+    if isDead { return }
+    if !hasStarted {
+      // Don't spawn pipes or scroll anything until game starts
+      return
+    }
 
     // Ghost replay
     if let timestamps = ghostTapTimestamps,
@@ -244,6 +461,43 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
       }
     }
 
+    // Scroll ground
+    groundVisual1.position.x -= scrollSpeed * scaledDt
+    groundVisual2.position.x -= scrollSpeed * scaledDt
+
+    // Reset ground positions for seamless looping
+    if groundVisual1.position.x < -size.width / 2 {
+      groundVisual1.position.x = groundVisual2.position.x + size.width
+    }
+    if groundVisual2.position.x < -size.width / 2 {
+      groundVisual2.position.x = groundVisual1.position.x + size.width
+    }
+
+    // Scroll parallax layers (only when game has started)
+    // Far layer at 20% speed
+    let farSpeed = scrollSpeed * 0.2
+    farLayer1.position.x -= farSpeed * scaledDt
+    farLayer2.position.x -= farSpeed * scaledDt
+
+    if farLayer1.position.x < -size.width / 2 {
+      farLayer1.position.x = farLayer2.position.x + size.width
+    }
+    if farLayer2.position.x < -size.width / 2 {
+      farLayer2.position.x = farLayer1.position.x + size.width
+    }
+
+    // Mid layer at 50% speed
+    let midSpeed = scrollSpeed * 0.5
+    midLayer1.position.x -= midSpeed * scaledDt
+    midLayer2.position.x -= midSpeed * scaledDt
+
+    if midLayer1.position.x < -size.width / 2 {
+      midLayer1.position.x = midLayer2.position.x + size.width
+    }
+    if midLayer2.position.x < -size.width / 2 {
+      midLayer2.position.x = midLayer1.position.x + size.width
+    }
+
     // Near-miss detection
     nearMissCooldown = max(0, nearMissCooldown - dt)
     if nearMissCooldown <= 0 {
@@ -275,6 +529,14 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
       die()
     }
 
+    // Clamp fall speed
+    if let vel = bird.physicsBody?.velocity, vel.dy < -maxFallSpeed {
+      bird.physicsBody?.velocity = CGVector(dx: vel.dx, dy: -maxFallSpeed)
+    }
+    if let ghost = ghostBird, let vel = ghost.physicsBody?.velocity, vel.dy < -maxFallSpeed {
+      ghost.physicsBody?.velocity = CGVector(dx: vel.dx, dy: -maxFallSpeed)
+    }
+
     // Tilt bird a bit based on vertical velocity
     if let vy = bird.physicsBody?.velocity.dy {
       bird.zRotation = max(min(vy / 900, 0.8), -0.8)
@@ -298,10 +560,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     let x = size.width + 90
 
-    let top = pipeNode(height: topHeight)
+    let top = pipeNode(height: topHeight, isTop: true)
     top.position = CGPoint(x: x, y: centerY + pipeGap/2 + topHeight/2)
 
-    let bottom = pipeNode(height: bottomHeight)
+    let bottom = pipeNode(height: bottomHeight, isTop: false)
     bottom.position = CGPoint(x: x, y: bottomHeight/2)
 
     addChild(top)
@@ -320,14 +582,34 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     addChild(zone)
   }
 
-  private func pipeNode(height: CGFloat) -> SKShapeNode {
-    let n = SKShapeNode(rectOf: CGSize(width: pipeWidth, height: max(10, height)), cornerRadius: 10)
+  private func pipeNode(height: CGFloat, isTop: Bool) -> SKShapeNode {
+    let actualHeight = max(10, height)
+    let n = SKShapeNode(rectOf: CGSize(width: pipeWidth, height: actualHeight), cornerRadius: 10)
     n.name = "pipe"
-    n.fillColor = SKColor(white: 1, alpha: 0.15)
-    n.strokeColor = SKColor(white: 1, alpha: 0.35)
-    n.lineWidth = 1.5
+    n.fillColor = SKColor(white: 1, alpha: 0.3)
+    n.strokeColor = SKColor(white: 1, alpha: 0.7)
+    n.lineWidth = 2
 
-    let body = SKPhysicsBody(rectangleOf: CGSize(width: pipeWidth, height: max(10, height)))
+    // Add subtle colored accent (inner stroke)
+    let accentStroke = SKShapeNode(rectOf: CGSize(width: pipeWidth - 4, height: actualHeight - 4), cornerRadius: 8)
+    accentStroke.strokeColor = SKColor(red: 1.0, green: 0.3, blue: 0.3, alpha: 0.25)
+    accentStroke.fillColor = .clear
+    accentStroke.lineWidth = 1.5
+    n.addChild(accentStroke)
+
+    // Add end cap at gap-facing edge
+    let capWidth = pipeWidth + 12
+    let capHeight: CGFloat = 8
+    let cap = SKShapeNode(rectOf: CGSize(width: capWidth, height: capHeight), cornerRadius: 4)
+    cap.fillColor = SKColor(white: 1, alpha: 0.35)
+    cap.strokeColor = SKColor(white: 1, alpha: 0.8)
+    cap.lineWidth = 2
+    // Position cap at the gap-facing edge: bottom for top pipes, top for bottom pipes
+    let capYOffset = isTop ? -(actualHeight / 2) : (actualHeight / 2)
+    cap.position = CGPoint(x: 0, y: capYOffset)
+    n.addChild(cap)
+
+    let body = SKPhysicsBody(rectangleOf: CGSize(width: pipeWidth, height: actualHeight))
     body.isDynamic = false
     body.categoryBitMask = Category.pipe
     body.contactTestBitMask = Category.bird
@@ -359,6 +641,15 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         SKAction.scale(to: 1.0, duration: 0.12)
       ]))
 
+      // Score particles - burst upward from bird
+      let scoreEmitter = makeEmitter(color: .white, count: 7, speed: 120, lifetime: 0.4)
+      scoreEmitter.position = bird.position
+      scoreEmitter.emissionAngle = .pi / 2  // Upward
+      scoreEmitter.emissionAngleRange = .pi / 4  // Spread upward
+      scoreEmitter.particleSpeedRange = 80
+      scoreEmitter.yAcceleration = -200  // Gravity effect
+      addChild(scoreEmitter)
+
       if a == Category.score {
         contact.bodyA.node?.removeFromParent()
       } else if b == Category.score {
@@ -382,18 +673,41 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
   private func die() {
     guard !isDead else { return }
     isDead = true
+    canRestart = false  // Prevent immediate restart
 
     Haptics.death()
     audio.playDeath()
+
+    // Death particles - explosion outward from bird
+    let deathEmitter = makeEmitter(color: .white, count: 15, speed: 250, lifetime: 0.5)
+    deathEmitter.position = bird.position
+    deathEmitter.emissionAngleRange = .pi * 2  // All directions
+    deathEmitter.particleColorBlendFactor = 0.7
+    deathEmitter.particleColorSequence = nil
+    deathEmitter.particleColorBlendFactorSequence = nil
+    // Mix of red and white particles
+    let deathEmitter2 = makeEmitter(color: SKColor.red, count: 8, speed: 220, lifetime: 0.5)
+    deathEmitter2.position = bird.position
+    deathEmitter2.emissionAngleRange = .pi * 2
+    addChild(deathEmitter)
+    addChild(deathEmitter2)
 
     // Cancel any slow-mo
     removeAction(forKey: "slowmo")
     timeScale = 1.0
     physicsWorld.speed = 1.0
 
-    // Freeze bird
-    bird.physicsBody?.velocity = .zero
-    bird.physicsBody?.isDynamic = false
+    // Add death spin
+    bird.physicsBody?.applyAngularImpulse(0.08)
+
+    // Delay freeze to let spin play out
+    run(SKAction.sequence([
+      SKAction.wait(forDuration: 0.4),
+      SKAction.run { [weak self] in
+        self?.bird.physicsBody?.velocity = .zero
+        self?.bird.physicsBody?.isDynamic = false
+      }
+    ]))
 
     // Screen shake
     camera?.run(SKAction.sequence([
@@ -422,32 +736,157 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
       SKAction.run { [weak self] in self?.showDeathOverlay() }
     ]))
 
+    // Enable restart after cooldown (0.8s total)
+    run(SKAction.sequence([
+      SKAction.wait(forDuration: 0.8),
+      SKAction.run { [weak self] in self?.enableRestart() }
+    ]), withKey: "restartCooldown")
+
     onGameOver?(score)
   }
 
   private func showDeathOverlay() {
-    let overlay = SKShapeNode(rectOf: CGSize(width: size.width - 40, height: 160), cornerRadius: 18)
+    let isNewBest = score > bestScore
+    let isChallengeWin = targetScore != nil && score >= targetScore!
+    let isChallengeMode = targetScore != nil
+
+    // Determine overlay height based on content
+    let overlayHeight: CGFloat = isNewBest || isChallengeMode ? 200 : 160
+
+    let overlay = SKShapeNode(rectOf: CGSize(width: size.width - 40, height: overlayHeight), cornerRadius: 18)
     overlay.fillColor = SKColor(white: 0, alpha: 0.35)
     overlay.strokeColor = SKColor(white: 1, alpha: 0.12)
     overlay.lineWidth = 1
-    overlay.position = CGPoint(x: size.width / 2, y: size.height / 2)
     overlay.zPosition = 20
+    overlay.name = "deathOverlay"
 
-    let title = SKLabelNode(text: "DEAD")
-    title.fontSize = 28
-    title.fontColor = SKColor.white.withAlphaComponent(0.9)
-    title.position = CGPoint(x: 0, y: 22)
-    title.zPosition = 21
-
-    let sub = SKLabelNode(text: "Score \(score)  •  Tap to restart")
-    sub.fontSize = 14
-    sub.fontColor = SKColor.white.withAlphaComponent(0.65)
-    sub.position = CGPoint(x: 0, y: -18)
-    sub.zPosition = 21
-
-    overlay.addChild(title)
-    overlay.addChild(sub)
+    // Start below screen for slide-up animation
+    let finalY = size.height / 2
+    overlay.position = CGPoint(x: size.width / 2, y: -overlayHeight)
     addChild(overlay)
+
+    // Slide up with bounce animation
+    let slideUp = SKAction.moveTo(y: finalY, duration: 0.4)
+    slideUp.timingMode = .easeOut
+    let bounce = SKAction.sequence([
+      SKAction.moveBy(x: 0, y: 12, duration: 0.1),
+      SKAction.moveBy(x: 0, y: -12, duration: 0.1)
+    ])
+    bounce.timingMode = .easeInEaseOut
+    overlay.run(SKAction.sequence([slideUp, bounce]))
+
+    var yOffset: CGFloat = overlayHeight / 2 - 30
+
+    // NEW BEST badge (if applicable)
+    if isNewBest {
+      let bestBadge = SKLabelNode(text: "NEW BEST!")
+      bestBadge.fontSize = 18
+      bestBadge.fontColor = SKColor(red: 1.0, green: 0.85, blue: 0.2, alpha: 1.0)  // Gold/yellow
+      bestBadge.position = CGPoint(x: 0, y: yOffset)
+      bestBadge.zPosition = 21
+      overlay.addChild(bestBadge)
+      yOffset -= 28
+    }
+
+    // Main title (conditional based on mode)
+    let titleText: String
+    let titleColor: SKColor
+
+    if isChallengeMode {
+      if isChallengeWin {
+        titleText = "YOU WIN!"
+        titleColor = SKColor(red: 0.2, green: 1.0, blue: 0.4, alpha: 1.0)  // Bright green
+      } else {
+        titleText = "SO CLOSE!"
+        titleColor = SKColor(red: 1.0, green: 0.6, blue: 0.2, alpha: 1.0)  // Orange
+      }
+    } else {
+      titleText = "DEAD"
+      titleColor = SKColor.white.withAlphaComponent(0.9)
+    }
+
+    let title = SKLabelNode(text: titleText)
+    title.fontSize = 32
+    title.fontColor = titleColor
+    title.position = CGPoint(x: 0, y: yOffset)
+    title.zPosition = 21
+    overlay.addChild(title)
+    yOffset -= 42
+
+    // Score display (prominent)
+    let scoreText: String
+    if let target = targetScore {
+      scoreText = "\(score) / \(target)"
+    } else {
+      scoreText = "\(score)"
+    }
+
+    let scoreDisplay = SKLabelNode(text: scoreText)
+    scoreDisplay.fontSize = 38
+    scoreDisplay.fontColor = SKColor.white.withAlphaComponent(0.95)
+    scoreDisplay.position = CGPoint(x: 0, y: yOffset)
+    scoreDisplay.zPosition = 21
+    overlay.addChild(scoreDisplay)
+    yOffset -= 46
+
+    // Tap to restart text (hidden initially, shown after cooldown)
+    let restartHint = SKLabelNode(text: "Tap to restart")
+    restartHint.fontSize = 14
+    restartHint.fontColor = SKColor.white.withAlphaComponent(0.65)
+    restartHint.position = CGPoint(x: 0, y: yOffset)
+    restartHint.zPosition = 21
+    restartHint.alpha = 0  // Hidden until cooldown expires
+    restartHint.name = "restartHint"
+    overlay.addChild(restartHint)
+  }
+
+  private func enableRestart() {
+    canRestart = true
+
+    // Show the restart hint with fade-in and pulsing animation
+    if let overlay = childNode(withName: "deathOverlay"),
+       let restartHint = overlay.childNode(withName: "restartHint") as? SKLabelNode {
+      // Fade in the hint
+      restartHint.run(SKAction.fadeAlpha(to: 0.65, duration: 0.3))
+
+      // Start pulsing animation
+      let pulseSequence = SKAction.sequence([
+        SKAction.fadeAlpha(to: 0.35, duration: 0.8),
+        SKAction.fadeAlpha(to: 0.65, duration: 0.8)
+      ])
+      restartHint.run(SKAction.repeatForever(pulseSequence), withKey: "pulse")
+    }
+  }
+
+  // MARK: - Particle effects
+
+  private func makeEmitter(color: SKColor, count: Int, speed: CGFloat, lifetime: CGFloat) -> SKEmitterNode {
+    let emitter = SKEmitterNode()
+    emitter.particleTexture = nil
+    emitter.particleColor = color
+    emitter.particleColorBlendFactor = 1.0
+    emitter.particleAlpha = 1.0
+    emitter.particleAlphaRange = 0.3
+    emitter.particleAlphaSpeed = -1.0 / lifetime
+    emitter.particleScale = 0.08
+    emitter.particleScaleRange = 0.04
+    emitter.particleScaleSpeed = -0.04
+    emitter.particleLifetime = lifetime
+    emitter.particleBirthRate = CGFloat(count) / 0.05  // Burst over 50ms
+    emitter.numParticlesToEmit = count
+    emitter.emissionAngleRange = .pi * 2
+    emitter.particleSpeed = speed
+    emitter.particleSpeedRange = speed * 0.4
+    emitter.particlePositionRange = CGVector(dx: 8, dy: 8)
+    emitter.targetNode = self  // Particles remain in world space
+
+    // Auto-remove after particles die
+    emitter.run(SKAction.sequence([
+      SKAction.wait(forDuration: TimeInterval(lifetime + 0.1)),
+      SKAction.removeFromParent()
+    ]))
+
+    return emitter
   }
 
   // MARK: - Near-miss effect
@@ -455,6 +894,12 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
   private func triggerNearMiss() {
     Haptics.nearMiss()
     audio.playNearMiss()
+
+    // Near-miss particles - sparks around bird
+    let nearMissEmitter = makeEmitter(color: SKColor.cyan, count: 5, speed: 150, lifetime: 0.3)
+    nearMissEmitter.position = bird.position
+    nearMissEmitter.emissionAngleRange = .pi * 2  // All directions
+    addChild(nearMissEmitter)
 
     // Chromatic flash on bird
     bird.run(SKAction.sequence([

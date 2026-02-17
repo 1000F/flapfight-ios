@@ -38,10 +38,17 @@ final class GameAudio {
     let sr: Double = 44100
     format = AVAudioFormat(standardFormatWithSampleRate: sr, channels: 1)!
 
-    flapBuffer     = GameAudio.tone(freq: 1800, dur: 0.04, wave: .square, sr: sr, fmt: format)
-    scoreBuffer    = GameAudio.tone(freq: 880,  dur: 0.08, wave: .sine,   sr: sr, fmt: format)
-    deathBuffer    = GameAudio.tone(freq: 110,  dur: 0.15, wave: .sine,   sr: sr, fmt: format)
-    nearMissBuffer = GameAudio.tone(freq: 2400, dur: 0.05, wave: .sine,   sr: sr, fmt: format)
+    // Flap: frequency sweep 2200→1600 Hz over 80ms, exponential decay
+    flapBuffer     = GameAudio.sweep(from: 2200, to: 1600, dur: 0.08, envelope: .exponential, sr: sr, fmt: format)
+
+    // Score: two-tone chord (880 + 1100 Hz), 120ms, exponential decay
+    scoreBuffer    = GameAudio.chord(freqs: [880, 1100], dur: 0.12, envelope: .exponential, sr: sr, fmt: format)
+
+    // Death: low rumble 150→60 Hz sweep over 200ms
+    deathBuffer    = GameAudio.sweep(from: 150, to: 60, dur: 0.2, envelope: .exponential, sr: sr, fmt: format)
+
+    // Near-miss: high shimmer 2800 Hz with vibrato (±200 Hz at 30 Hz), 60ms
+    nearMissBuffer = GameAudio.vibrato(freq: 2800, vibDepth: 200, vibRate: 30, dur: 0.06, sr: sr, fmt: format)
 
     engine.attach(player)
     engine.connect(player, to: engine.mainMixerNode, format: format)
@@ -63,9 +70,42 @@ final class GameAudio {
 
   // MARK: - Tone synthesis
 
-  private enum Wave { case sine, square }
+  private enum Envelope { case linear, exponential }
 
-  private static func tone(freq: Double, dur: Double, wave: Wave, sr: Double, fmt: AVAudioFormat) -> AVAudioPCMBuffer {
+  /// Frequency sweep from one frequency to another
+  private static func sweep(from startFreq: Double, to endFreq: Double, dur: Double, envelope: Envelope, sr: Double, fmt: AVAudioFormat) -> AVAudioPCMBuffer {
+    let frames = AVAudioFrameCount(sr * dur)
+    let buf = AVAudioPCMBuffer(pcmFormat: fmt, frameCapacity: frames)!
+    buf.frameLength = frames
+    let data = buf.floatChannelData![0]
+
+    var phase: Double = 0.0
+
+    for i in 0..<Int(frames) {
+      let t = Double(i) / sr
+      let progress = t / dur
+
+      // Exponential envelope: pow(1 - progress, 2)
+      let env: Double
+      switch envelope {
+      case .linear:      env = 1.0 - progress
+      case .exponential: env = pow(1.0 - progress, 2.0)
+      }
+
+      // Lerp frequency over time
+      let freq = startFreq + (endFreq - startFreq) * progress
+
+      // Accumulate phase to avoid discontinuities
+      phase += 2.0 * .pi * freq / sr
+      let sample = sin(phase)
+
+      data[i] = Float(sample * env * 0.3)
+    }
+    return buf
+  }
+
+  /// Chord - sum multiple sine waves
+  private static func chord(freqs: [Double], dur: Double, envelope: Envelope, sr: Double, fmt: AVAudioFormat) -> AVAudioPCMBuffer {
     let frames = AVAudioFrameCount(sr * dur)
     let buf = AVAudioPCMBuffer(pcmFormat: fmt, frameCapacity: frames)!
     buf.frameLength = frames
@@ -73,13 +113,52 @@ final class GameAudio {
 
     for i in 0..<Int(frames) {
       let t = Double(i) / sr
-      let env = 1.0 - (t / dur)
-      let phase = 2.0 * .pi * freq * t
-      let sample: Double
-      switch wave {
-      case .sine:   sample = sin(phase)
-      case .square: sample = sin(phase) > 0 ? 1.0 : -1.0
+      let progress = t / dur
+
+      // Exponential envelope
+      let env: Double
+      switch envelope {
+      case .linear:      env = 1.0 - progress
+      case .exponential: env = pow(1.0 - progress, 2.0)
       }
+
+      // Sum all frequencies
+      var sample = 0.0
+      for freq in freqs {
+        let phase = 2.0 * .pi * freq * t
+        sample += sin(phase)
+      }
+      sample /= Double(freqs.count) // Normalize to prevent clipping
+
+      data[i] = Float(sample * env * 0.3)
+    }
+    return buf
+  }
+
+  /// Vibrato - frequency modulation
+  private static func vibrato(freq: Double, vibDepth: Double, vibRate: Double, dur: Double, sr: Double, fmt: AVAudioFormat) -> AVAudioPCMBuffer {
+    let frames = AVAudioFrameCount(sr * dur)
+    let buf = AVAudioPCMBuffer(pcmFormat: fmt, frameCapacity: frames)!
+    buf.frameLength = frames
+    let data = buf.floatChannelData![0]
+
+    var phase: Double = 0.0
+
+    for i in 0..<Int(frames) {
+      let t = Double(i) / sr
+      let progress = t / dur
+
+      // Exponential envelope
+      let env = pow(1.0 - progress, 2.0)
+
+      // Vibrato: modulate frequency with a sine wave
+      let vibrato = sin(2.0 * .pi * vibRate * t) * vibDepth
+      let modulatedFreq = freq + vibrato
+
+      // Accumulate phase
+      phase += 2.0 * .pi * modulatedFreq / sr
+      let sample = sin(phase)
+
       data[i] = Float(sample * env * 0.3)
     }
     return buf

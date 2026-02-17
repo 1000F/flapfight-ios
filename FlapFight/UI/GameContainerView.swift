@@ -4,20 +4,23 @@ import SpriteKit
 struct GameContainerView: View {
   let id: UUID
   let mode: GameMode
+  let bestScore: Int
   let onGameOver: (Int, UInt64, [TimeInterval]) -> Void
   let onRestartRequested: () -> Void
 
   @State private var scene: GameScene
 
-  init(id: UUID, mode: GameMode, onGameOver: @escaping (Int, UInt64, [TimeInterval]) -> Void, onRestartRequested: @escaping () -> Void) {
+  init(id: UUID, mode: GameMode, bestScore: Int, onGameOver: @escaping (Int, UInt64, [TimeInterval]) -> Void, onRestartRequested: @escaping () -> Void) {
     self.id = id
     self.mode = mode
+    self.bestScore = bestScore
     self.onGameOver = onGameOver
     self.onRestartRequested = onRestartRequested
 
     let s = GameScene(size: CGSize(width: 390, height: 520))
     s.scaleMode = .resizeFill
     s.isUserInteractionEnabled = true
+    s.bestScore = bestScore
 
     // Set seed, target score, and ghost data based on mode
     switch mode {
