@@ -126,3 +126,35 @@ Files changed:
 - CGFloat.random() used for dot Y positions to create varied, organic patterns
 - Build succeeds, no performance impact observed from additional layers
 ---
+## 2026-02-17 05:15 MST - US-006
+- Implemented particle effects for score, near-miss, and death events
+- Created makeEmitter() helper method at line ~687 that generates programmatic SKEmitterNode particles:
+  - Takes parameters: color, count, speed, lifetime
+  - Configured for burst emission with world space positioning (targetNode = self)
+  - Auto-removes after lifetime expires
+- Score particles: 7 white particles bursting upward from bird position (~line 607)
+  - Speed: 120 pts/s with upward emission angle and gravity effect (yAcceleration: -200)
+  - Lifetime: 0.4s
+- Near-miss particles: 5 cyan sparks radiating from bird in all directions (~line 724)
+  - Speed: 150 pts/s with random angles
+  - Lifetime: 0.3s
+- Death particles: 15 white + 8 red particles exploding outward from bird (~line 643)
+  - Speed: 250/220 pts/s with omnidirectional emission
+  - Lifetime: 0.5s
+  - Two emitters for color variety
+
+Files changed:
+- FlapFight/Game/GameScene.swift
+
+**Learnings for future iterations:**
+- SKEmitterNode particles can be fully programmatic without .sks files
+- particleTexture = nil creates square particles (default shape)
+- targetNode = self keeps particles in world space when parent node moves
+- emissionAngle (radians): π/2 = up, 0 = right, -π/2 = down, π = left
+- emissionAngleRange creates spread around the emission angle
+- particleAlphaSpeed = -1.0/lifetime creates linear fade-out
+- yAcceleration creates gravity effect for score particles
+- Multiple emitters at same position create color variety (death effect)
+- SKAction.wait + removeFromParent ensures emitters clean up after burst completes
+- Build succeeds, particles add visual punch without affecting performance
+---

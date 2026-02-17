@@ -100,7 +100,7 @@
         "Build succeeds"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": "Create helper method makeEmitter(color:count:speed:lifetime:). Call from didBegin() for score, triggerNearMiss() for near-miss, and die() for death. Set emitter.targetNode = self."
     },
     {
