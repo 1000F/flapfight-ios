@@ -24,6 +24,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
   private var ground = SKNode()
   private var groundVisual1 = SKShapeNode()
   private var groundVisual2 = SKShapeNode()
+  private var farLayer1 = SKShapeNode()
+  private var farLayer2 = SKShapeNode()
+  private var midLayer1 = SKShapeNode()
+  private var midLayer2 = SKShapeNode()
   private var isDead = false
   private var hasStarted = false
 
@@ -122,6 +126,47 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     return ground
   }
 
+  private func makeFarParallaxLayer(width: CGFloat, height: CGFloat) -> SKShapeNode {
+    let container = SKShapeNode(rectOf: CGSize(width: width, height: height))
+    container.fillColor = .clear
+    container.strokeColor = .clear
+    container.name = "farLayer"
+
+    // Add horizontal lines at various heights
+    let lineCount = 8
+    for i in 0..<lineCount {
+      let y = (CGFloat(i) / CGFloat(lineCount - 1)) * height - height / 2
+      let line = SKShapeNode(rectOf: CGSize(width: width, height: 1))
+      line.fillColor = SKColor.white.withAlphaComponent(0.05)
+      line.strokeColor = .clear
+      line.position = CGPoint(x: 0, y: y)
+      container.addChild(line)
+    }
+
+    return container
+  }
+
+  private func makeMidParallaxLayer(width: CGFloat, height: CGFloat) -> SKShapeNode {
+    let container = SKShapeNode(rectOf: CGSize(width: width, height: height))
+    container.fillColor = .clear
+    container.strokeColor = .clear
+    container.name = "midLayer"
+
+    // Add subtle circular shapes scattered across the layer
+    let dotCount = 12
+    for i in 0..<dotCount {
+      let x = (CGFloat(i) / CGFloat(dotCount - 1)) * width - width / 2
+      let y = CGFloat.random(in: -height/2...height/2)
+      let dot = SKShapeNode(circleOfRadius: 3)
+      dot.fillColor = SKColor.white.withAlphaComponent(0.12)
+      dot.strokeColor = .clear
+      dot.position = CGPoint(x: x, y: y)
+      container.addChild(dot)
+    }
+
+    return container
+  }
+
   private func buildScene() {
     removeAllChildren()
     isDead = false
@@ -137,6 +182,28 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     bg.strokeColor = .clear
     bg.zPosition = -10
     addChild(bg)
+
+    // Far parallax layer (very faint horizontal lines, slowest)
+    farLayer1 = makeFarParallaxLayer(width: size.width, height: size.height)
+    farLayer1.position = CGPoint(x: size.width / 2, y: size.height / 2)
+    farLayer1.zPosition = -9
+    addChild(farLayer1)
+
+    farLayer2 = makeFarParallaxLayer(width: size.width, height: size.height)
+    farLayer2.position = CGPoint(x: size.width * 1.5, y: size.height / 2)
+    farLayer2.zPosition = -9
+    addChild(farLayer2)
+
+    // Mid parallax layer (slightly brighter dots, medium speed)
+    midLayer1 = makeMidParallaxLayer(width: size.width, height: size.height)
+    midLayer1.position = CGPoint(x: size.width / 2, y: size.height / 2)
+    midLayer1.zPosition = -5
+    addChild(midLayer1)
+
+    midLayer2 = makeMidParallaxLayer(width: size.width, height: size.height)
+    midLayer2.position = CGPoint(x: size.width * 1.5, y: size.height / 2)
+    midLayer2.zPosition = -5
+    addChild(midLayer2)
 
     // Ground (invisible collider)
     ground = SKNode()
@@ -347,6 +414,31 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     if groundVisual2.position.x < -size.width / 2 {
       groundVisual2.position.x = groundVisual1.position.x + size.width
+    }
+
+    // Scroll parallax layers (only when game has started)
+    // Far layer at 20% speed
+    let farSpeed = scrollSpeed * 0.2
+    farLayer1.position.x -= farSpeed * scaledDt
+    farLayer2.position.x -= farSpeed * scaledDt
+
+    if farLayer1.position.x < -size.width / 2 {
+      farLayer1.position.x = farLayer2.position.x + size.width
+    }
+    if farLayer2.position.x < -size.width / 2 {
+      farLayer2.position.x = farLayer1.position.x + size.width
+    }
+
+    // Mid layer at 50% speed
+    let midSpeed = scrollSpeed * 0.5
+    midLayer1.position.x -= midSpeed * scaledDt
+    midLayer2.position.x -= midSpeed * scaledDt
+
+    if midLayer1.position.x < -size.width / 2 {
+      midLayer1.position.x = midLayer2.position.x + size.width
+    }
+    if midLayer2.position.x < -size.width / 2 {
+      midLayer2.position.x = midLayer1.position.x + size.width
     }
 
     // Near-miss detection
