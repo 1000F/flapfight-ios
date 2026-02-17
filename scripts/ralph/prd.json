@@ -124,7 +124,7 @@
         "Build succeeds"
       ],
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "notes": "Use SwiftUI's ShareLink or wrap UIActivityViewController. The share button should appear after game over."
     }
   ]

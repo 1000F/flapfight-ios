@@ -111,3 +111,19 @@ Started: 2026-02-16
   - CGContext for drawing primitives (fills, strokes, gradients)
   - Radial gradients need saveGState/restoreGState for isolation
 ---
+## 2026-02-16 16:10 - US-008
+- Added SHARE CHALLENGE button using SwiftUI's ShareLink
+- Button appears below challenge code display (only when code exists)
+- ShareLink shares both generated card image and text message
+- Text message: "I scored X in FlapFight! Can you beat me? Code: [code]"
+- generateShareImage() helper creates Image from ShareCard
+- Purple-to-blue gradient styling for share button with icon
+- SharePreview provides preview metadata for share sheet
+- Files changed: RootView.swift
+- Build succeeded
+- **Learnings for future iterations:**
+  - SwiftUI's ShareLink is iOS 16+ and handles UIActivityViewController automatically
+  - ShareLink accepts Image, Text for message, and SharePreview for metadata
+  - Button only shown when both lastChallengeCode and lastScore exist
+  - Share button placed in same VStack as challenge code for visual grouping
+---
