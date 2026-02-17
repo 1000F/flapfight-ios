@@ -3,12 +3,13 @@ import GameplayKit
 
 final class GameScene: SKScene, SKPhysicsContactDelegate {
   // MARK: - Tunables
-  private let gravity: CGFloat = -7.5
-  private let flapImpulse: CGFloat = 250
+  private let gravity: CGFloat = -14
+  private let flapImpulse: CGFloat = 320
   private let scrollSpeed: CGFloat = 160
   private let pipeGap: CGFloat = 170
   private let pipeWidth: CGFloat = 64
   private let pipeSpawnEvery: TimeInterval = 1.35
+  private let maxFallSpeed: CGFloat = 500
 
   // MARK: - State
   var seed: UInt64 = UInt64.random(in: 0...UInt64.max)
@@ -92,8 +93,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     let birdBody = SKPhysicsBody(circleOfRadius: birdRadius)
     birdBody.allowsRotation = true
-    birdBody.linearDamping = 0.1
-    birdBody.angularDamping = 0.9
+    birdBody.linearDamping = 0.3
+    birdBody.angularDamping = 0.5
     birdBody.categoryBitMask = Category.bird
     birdBody.collisionBitMask = Category.pipe | Category.ground
     birdBody.contactTestBitMask = Category.pipe | Category.score | Category.ground
@@ -113,8 +114,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
       let ghostBody = SKPhysicsBody(circleOfRadius: 18)
       ghostBody.allowsRotation = true
-      ghostBody.linearDamping = 0.1
-      ghostBody.angularDamping = 0.9
+      ghostBody.linearDamping = 0.3
+      ghostBody.angularDamping = 0.5
       ghostBody.categoryBitMask = 0 // No category
       ghostBody.collisionBitMask = 0 // Pass through everything
       ghostBody.contactTestBitMask = 0 // No contacts
@@ -273,6 +274,14 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     // Fail out-of-bounds
     if bird.position.y < 0 || bird.position.y > size.height + 60 {
       die()
+    }
+
+    // Clamp fall speed
+    if let vel = bird.physicsBody?.velocity, vel.dy < -maxFallSpeed {
+      bird.physicsBody?.velocity = CGVector(dx: vel.dx, dy: -maxFallSpeed)
+    }
+    if let ghost = ghostBird, let vel = ghost.physicsBody?.velocity, vel.dy < -maxFallSpeed {
+      ghost.physicsBody?.velocity = CGVector(dx: vel.dx, dy: -maxFallSpeed)
     }
 
     // Tilt bird a bit based on vertical velocity
