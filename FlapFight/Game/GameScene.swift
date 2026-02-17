@@ -24,6 +24,12 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
   private var lastUpdate: TimeInterval = 0
   private var spawnAccumulator: TimeInterval = 0
 
+  // FX
+  private let audio = GameAudio()
+  private let nearMissThreshold: CGFloat = 25
+  private var nearMissCooldown: TimeInterval = 0
+  private var timeScale: CGFloat = 1.0
+
   private enum Category {
     static let bird: UInt32 = 1 << 0
     static let pipe: UInt32 = 1 << 1
@@ -97,23 +103,26 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     hint.name = "hint"
     addChild(hint)
 
+    // Camera (for screen shake)
+    let cam = SKCameraNode()
+    cam.position = CGPoint(x: size.width / 2, y: size.height / 2)
+    addChild(cam)
+    camera = cam
+
     lastUpdate = 0
     spawnAccumulator = 0
+    timeScale = 1.0
+    Haptics.prepare()
   }
 
   func handleTap() {
-    // Visual debug: flash the bird so we know taps are arriving
-    let flash = SKAction.sequence([
-      SKAction.run { [weak self] in self?.bird.fillColor = SKColor.red.withAlphaComponent(0.95) },
-      SKAction.wait(forDuration: 0.05),
-      SKAction.run { [weak self] in self?.bird.fillColor = SKColor.white.withAlphaComponent(0.92) }
-    ])
-    bird.run(flash)
-
     if isDead {
       onRestartRequested?()
       return
     }
+
+    Haptics.flap()
+    audio.playFlap()
 
     childNode(withName: "hint")?.removeFromParent()
 
@@ -139,18 +148,46 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
       spawnPipePair()
     }
 
+    let scaledDt = dt * Double(timeScale)
+
     // Move pipes
     enumerateChildNodes(withName: "pipe") { node, _ in
-      node.position.x -= self.scrollSpeed * dt
+      node.position.x -= self.scrollSpeed * scaledDt
       if node.position.x < -200 {
         node.removeFromParent()
       }
     }
 
     enumerateChildNodes(withName: "scoreZone") { node, _ in
-      node.position.x -= self.scrollSpeed * dt
+      node.position.x -= self.scrollSpeed * scaledDt
       if node.position.x < -200 {
         node.removeFromParent()
+      }
+    }
+
+    // Near-miss detection
+    nearMissCooldown = max(0, nearMissCooldown - dt)
+    if nearMissCooldown <= 0 {
+      let birdY = bird.position.y
+      let birdX = bird.position.x
+      enumerateChildNodes(withName: "pipe") { node, stop in
+        let halfW = self.pipeWidth / 2
+        guard birdX > node.position.x - halfW - 14,
+              birdX < node.position.x + halfW + 14 else { return }
+
+        let pipeHalfH = node.frame.height / 2
+        let topEdge = node.position.y + pipeHalfH
+        let bottomEdge = node.position.y - pipeHalfH
+
+        let distTop = abs(birdY - topEdge)
+        let distBottom = abs(birdY - bottomEdge)
+        let minDist = min(distTop, distBottom)
+
+        if minDist < self.nearMissThreshold && minDist > 14 {
+          self.triggerNearMiss()
+          self.nearMissCooldown = 0.4
+          stop.pointee = true
+        }
       }
     }
 
@@ -222,11 +259,16 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     let mask = a | b
 
     if mask & Category.score != 0 && mask & Category.bird != 0 {
-      // score
       score += 1
       scoreLabel.text = "\(score)"
 
-      // remove zone so it doesn't score twice
+      Haptics.score()
+      audio.playScore()
+      scoreLabel.run(SKAction.sequence([
+        SKAction.scale(to: 1.5, duration: 0.08),
+        SKAction.scale(to: 1.0, duration: 0.12)
+      ]))
+
       if a == Category.score {
         contact.bodyA.node?.removeFromParent()
       } else if b == Category.score {
@@ -251,16 +293,54 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     guard !isDead else { return }
     isDead = true
 
-    // freeze
+    Haptics.death()
+    audio.playDeath()
+
+    // Cancel any slow-mo
+    removeAction(forKey: "slowmo")
+    timeScale = 1.0
+    physicsWorld.speed = 1.0
+
+    // Freeze bird
     bird.physicsBody?.velocity = .zero
     bird.physicsBody?.isDynamic = false
 
-    // overlay
+    // Screen shake
+    camera?.run(SKAction.sequence([
+      SKAction.moveBy(x: 8, y: 0, duration: 0.03),
+      SKAction.moveBy(x: -16, y: 0, duration: 0.03),
+      SKAction.moveBy(x: 12, y: 0, duration: 0.03),
+      SKAction.moveBy(x: -8, y: 0, duration: 0.03),
+      SKAction.moveBy(x: 4, y: 0, duration: 0.03),
+      SKAction.moveTo(x: size.width / 2, duration: 0.02),
+    ]))
+
+    // Red flash
+    let flash = SKShapeNode(rect: frame)
+    flash.fillColor = SKColor.red.withAlphaComponent(0.3)
+    flash.strokeColor = .clear
+    flash.zPosition = 15
+    addChild(flash)
+    flash.run(SKAction.sequence([
+      SKAction.fadeOut(withDuration: 0.2),
+      SKAction.removeFromParent()
+    ]))
+
+    // Delayed overlay
+    run(SKAction.sequence([
+      SKAction.wait(forDuration: 0.3),
+      SKAction.run { [weak self] in self?.showDeathOverlay() }
+    ]))
+
+    onGameOver?(score)
+  }
+
+  private func showDeathOverlay() {
     let overlay = SKShapeNode(rectOf: CGSize(width: size.width - 40, height: 160), cornerRadius: 18)
     overlay.fillColor = SKColor(white: 0, alpha: 0.35)
     overlay.strokeColor = SKColor(white: 1, alpha: 0.12)
     overlay.lineWidth = 1
-    overlay.position = CGPoint(x: size.width/2, y: size.height/2)
+    overlay.position = CGPoint(x: size.width / 2, y: size.height / 2)
     overlay.zPosition = 20
 
     let title = SKLabelNode(text: "DEAD")
@@ -278,7 +358,36 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     overlay.addChild(title)
     overlay.addChild(sub)
     addChild(overlay)
+  }
 
-    onGameOver?(score)
+  // MARK: - Near-miss effect
+
+  private func triggerNearMiss() {
+    Haptics.nearMiss()
+    audio.playNearMiss()
+
+    // Chromatic flash on bird
+    bird.run(SKAction.sequence([
+      SKAction.run { [weak self] in
+        self?.bird.fillColor = SKColor(red: 0.4, green: 1.0, blue: 1.0, alpha: 0.95)
+        self?.bird.strokeColor = SKColor.cyan
+      },
+      SKAction.wait(forDuration: 0.08),
+      SKAction.run { [weak self] in
+        self?.bird.fillColor = SKColor.white.withAlphaComponent(0.92)
+        self?.bird.strokeColor = SKColor.red.withAlphaComponent(0.55)
+      }
+    ]), withKey: "nearMiss")
+
+    // Micro slow-mo
+    timeScale = 0.6
+    physicsWorld.speed = 0.6
+    run(SKAction.sequence([
+      SKAction.wait(forDuration: 0.1),
+      SKAction.run { [weak self] in
+        self?.timeScale = 1.0
+        self?.physicsWorld.speed = 1.0
+      }
+    ]), withKey: "slowmo")
   }
 }
