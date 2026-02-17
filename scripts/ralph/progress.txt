@@ -246,3 +246,34 @@ Files changed:
 - Fade durations of 200ms (0.2s) feel smooth without being sluggish
 - Build succeeds, ready state now provides engaging visual feedback
 ---
+## 2026-02-17 10:15 MST - US-010
+- Implemented restart cooldown to prevent accidental double-tap after death
+- Added canRestart boolean flag to track whether restart is allowed (line ~34)
+- canRestart initialized to false in buildScene() to ensure clean state
+- In die() method, canRestart is set to false immediately
+- Added 0.8s delay using SKAction.sequence that calls enableRestart() after cooldown
+- Modified handleTap() to check canRestart flag before allowing restart
+- Created enableRestart() method that:
+  - Sets canRestart = true
+  - Finds the restart hint in the overlay
+  - Fades in the hint over 0.3s
+  - Starts the pulsing animation (opacity 0.35↔0.65 cycle)
+- Modified showDeathOverlay() to:
+  - Give overlay name "deathOverlay" for later reference
+  - Create restart hint with alpha=0 (hidden) and name "restartHint"
+  - Remove immediate pulsing animation (now triggered in enableRestart())
+- Cooldown timing: overlay shows at 0.3s, restart enabled at 0.8s
+
+Files changed:
+- FlapFight/Game/GameScene.swift
+
+**Learnings for future iterations:**
+- canRestart flag pattern prevents unwanted interactions during cooldown periods
+- Using childNode(withName:) allows methods to find and manipulate overlay elements
+- Sequential animations: fade-in first, then start pulsing (looks smoother)
+- 0.8s cooldown feels natural - long enough to prevent accidents, short enough not to frustrate
+- Naming nodes ("deathOverlay", "restartHint") enables runtime manipulation
+- SKAction delays with withKey: parameter allow for potential cancellation if needed
+- Initial alpha=0 for elements that should appear later, then fade in for smooth UX
+- Build succeeds, restart cooldown prevents accidental restarts effectively
+---

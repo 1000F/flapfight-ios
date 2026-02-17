@@ -162,7 +162,7 @@
         "Build succeeds"
       ],
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "notes": "Add canRestart flag, set false on death, true after 0.8s SKAction delay. Check in handleTap()."
     },
     {
