@@ -584,6 +584,15 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         SKAction.scale(to: 1.0, duration: 0.12)
       ]))
 
+      // Score particles - burst upward from bird
+      let scoreEmitter = makeEmitter(color: .white, count: 7, speed: 120, lifetime: 0.4)
+      scoreEmitter.position = bird.position
+      scoreEmitter.emissionAngle = .pi / 2  // Upward
+      scoreEmitter.emissionAngleRange = .pi / 4  // Spread upward
+      scoreEmitter.particleSpeedRange = 80
+      scoreEmitter.yAcceleration = -200  // Gravity effect
+      addChild(scoreEmitter)
+
       if a == Category.score {
         contact.bodyA.node?.removeFromParent()
       } else if b == Category.score {
@@ -610,6 +619,20 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     Haptics.death()
     audio.playDeath()
+
+    // Death particles - explosion outward from bird
+    let deathEmitter = makeEmitter(color: .white, count: 15, speed: 250, lifetime: 0.5)
+    deathEmitter.position = bird.position
+    deathEmitter.emissionAngleRange = .pi * 2  // All directions
+    deathEmitter.particleColorBlendFactor = 0.7
+    deathEmitter.particleColorSequence = nil
+    deathEmitter.particleColorBlendFactorSequence = nil
+    // Mix of red and white particles
+    let deathEmitter2 = makeEmitter(color: SKColor.red, count: 8, speed: 220, lifetime: 0.5)
+    deathEmitter2.position = bird.position
+    deathEmitter2.emissionAngleRange = .pi * 2
+    addChild(deathEmitter)
+    addChild(deathEmitter2)
 
     // Cancel any slow-mo
     removeAction(forKey: "slowmo")
@@ -683,11 +706,48 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     addChild(overlay)
   }
 
+  // MARK: - Particle effects
+
+  private func makeEmitter(color: SKColor, count: Int, speed: CGFloat, lifetime: CGFloat) -> SKEmitterNode {
+    let emitter = SKEmitterNode()
+    emitter.particleTexture = nil
+    emitter.particleColor = color
+    emitter.particleColorBlendFactor = 1.0
+    emitter.particleAlpha = 1.0
+    emitter.particleAlphaRange = 0.3
+    emitter.particleAlphaSpeed = -1.0 / lifetime
+    emitter.particleScale = 0.08
+    emitter.particleScaleRange = 0.04
+    emitter.particleScaleSpeed = -0.04
+    emitter.particleLifetime = lifetime
+    emitter.particleBirthRate = CGFloat(count) / 0.05  // Burst over 50ms
+    emitter.numParticlesToEmit = count
+    emitter.emissionAngleRange = .pi * 2
+    emitter.particleSpeed = speed
+    emitter.particleSpeedRange = speed * 0.4
+    emitter.particlePositionRange = CGVector(dx: 8, dy: 8)
+    emitter.targetNode = self  // Particles remain in world space
+
+    // Auto-remove after particles die
+    emitter.run(SKAction.sequence([
+      SKAction.wait(forDuration: TimeInterval(lifetime + 0.1)),
+      SKAction.removeFromParent()
+    ]))
+
+    return emitter
+  }
+
   // MARK: - Near-miss effect
 
   private func triggerNearMiss() {
     Haptics.nearMiss()
     audio.playNearMiss()
+
+    // Near-miss particles - sparks around bird
+    let nearMissEmitter = makeEmitter(color: SKColor.cyan, count: 5, speed: 150, lifetime: 0.3)
+    nearMissEmitter.position = bird.position
+    nearMissEmitter.emissionAngleRange = .pi * 2  // All directions
+    addChild(nearMissEmitter)
 
     // Chromatic flash on bird
     bird.run(SKAction.sequence([
