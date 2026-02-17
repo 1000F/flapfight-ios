@@ -368,10 +368,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     let x = size.width + 90
 
-    let top = pipeNode(height: topHeight)
+    let top = pipeNode(height: topHeight, isTop: true)
     top.position = CGPoint(x: x, y: centerY + pipeGap/2 + topHeight/2)
 
-    let bottom = pipeNode(height: bottomHeight)
+    let bottom = pipeNode(height: bottomHeight, isTop: false)
     bottom.position = CGPoint(x: x, y: bottomHeight/2)
 
     addChild(top)
@@ -390,14 +390,34 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     addChild(zone)
   }
 
-  private func pipeNode(height: CGFloat) -> SKShapeNode {
-    let n = SKShapeNode(rectOf: CGSize(width: pipeWidth, height: max(10, height)), cornerRadius: 10)
+  private func pipeNode(height: CGFloat, isTop: Bool) -> SKShapeNode {
+    let actualHeight = max(10, height)
+    let n = SKShapeNode(rectOf: CGSize(width: pipeWidth, height: actualHeight), cornerRadius: 10)
     n.name = "pipe"
-    n.fillColor = SKColor(white: 1, alpha: 0.15)
-    n.strokeColor = SKColor(white: 1, alpha: 0.35)
-    n.lineWidth = 1.5
+    n.fillColor = SKColor(white: 1, alpha: 0.3)
+    n.strokeColor = SKColor(white: 1, alpha: 0.7)
+    n.lineWidth = 2
 
-    let body = SKPhysicsBody(rectangleOf: CGSize(width: pipeWidth, height: max(10, height)))
+    // Add subtle colored accent (inner stroke)
+    let accentStroke = SKShapeNode(rectOf: CGSize(width: pipeWidth - 4, height: actualHeight - 4), cornerRadius: 8)
+    accentStroke.strokeColor = SKColor(red: 1.0, green: 0.3, blue: 0.3, alpha: 0.25)
+    accentStroke.fillColor = .clear
+    accentStroke.lineWidth = 1.5
+    n.addChild(accentStroke)
+
+    // Add end cap at gap-facing edge
+    let capWidth = pipeWidth + 12
+    let capHeight: CGFloat = 8
+    let cap = SKShapeNode(rectOf: CGSize(width: capWidth, height: capHeight), cornerRadius: 4)
+    cap.fillColor = SKColor(white: 1, alpha: 0.35)
+    cap.strokeColor = SKColor(white: 1, alpha: 0.8)
+    cap.lineWidth = 2
+    // Position cap at the gap-facing edge: bottom for top pipes, top for bottom pipes
+    let capYOffset = isTop ? -(actualHeight / 2) : (actualHeight / 2)
+    cap.position = CGPoint(x: 0, y: capYOffset)
+    n.addChild(cap)
+
+    let body = SKPhysicsBody(rectangleOf: CGSize(width: pipeWidth, height: actualHeight))
     body.isDynamic = false
     body.categoryBitMask = Category.pipe
     body.contactTestBitMask = Category.bird

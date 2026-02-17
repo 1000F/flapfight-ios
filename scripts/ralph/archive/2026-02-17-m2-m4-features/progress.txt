@@ -1,0 +1,27 @@
+# Ralph Progress Log — Overnight Rebuild
+Started: 2026-02-17
+---
+## Codebase Patterns
+- Build command: `xcodebuild -project FlapFight.xcodeproj -scheme FlapFight -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -quiet build`
+- After adding new .swift files: run `xcodegen generate` before building
+- Game scene size is fixed at 390x520 (set in GameContainerView.swift)
+- Bird radius is 18pt, physics body is circleOfRadius 18
+- Bird starts frozen (isDynamic=false) until first tap sets hasStarted=true
+- First tap only enables physics (no flap impulse), subsequent taps flap
+- Taps come from SwiftUI onTapGesture → handleTap(), NOT from touchesBegan (removed)
+- Pipe gap: 170pt, pipe width: 64pt, spawn interval: 1.35s
+- All nodes are programmatic SKShapeNode, no textures/assets/images
+- Physics categories: bird (1<<0), pipe (1<<1), score (1<<2), ground (1<<3)
+- Ground collider is at y=40 (invisible)
+- GameMode enum defined in RootView.swift: .classic or .challenge(ChallengeCode)
+- GameContainerView bridges SwiftUI ↔ SpriteKit, passes mode/seed/ghost data
+- Audio is procedural via AVAudioEngine (GameFX.swift), no sound files
+- Haptics via static Haptics enum (GameFX.swift)
+- Near-miss detection: distance-based in update(), triggers at <25pt from pipe edge
+- Death sequence: haptic + sound + cancel slow-mo + freeze bird + shake + red flash + 0.3s delay + overlay
+- project.yml uses xcodegen; DEVELOPMENT_TEAM: 5U9W272754, CODE_SIGN_STYLE: Automatic
+- Camera node added for screen shake (SKCameraNode at scene center)
+- Seeded RNG: GKMersenneTwisterRandomSource initialized from seed property
+- Ghost bird: cyan circle at 0.3 alpha, no collision, replays tap timestamps
+- ChallengeCode: base32 encoded seed + score + delta-compressed tap timestamps
+---

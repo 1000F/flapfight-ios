@@ -17,7 +17,7 @@
         "Build succeeds"
       ],
       "priority": 1,
-      "passes": true,
+      "passes": false,
       "notes": "GameScene.swift lines 6-11 for tunables, lines 93-96 for damping. Test by feel — bird should reach apex quickly after tap and fall decisively."
     },
     {
@@ -35,7 +35,7 @@
         "Build succeeds"
       ],
       "priority": 2,
-      "passes": true,
+      "passes": false,
       "notes": "Use SKShapeNode with CGPath for the beak and wing. Add the eye as a small filled circle child node. The wing can be an arc or triangle that rotates on tap."
     },
     {

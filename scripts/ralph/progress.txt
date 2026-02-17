@@ -21,3 +21,30 @@ Files changed:
 - Ghost bird physics must match main bird for accurate replay behavior
 - Build succeeds with xcodebuild -quiet flag for cleaner output
 ---
+## 2026-02-17 01:00 MST - US-002
+- Implemented stylized bird character with composed SKNode
+- Created makeBirdNode() helper that returns a container node with:
+  - Circular body (18pt radius) with white fill and red stroke
+  - Black eye dot positioned at (7, 5) relative to body center
+  - Orange triangular beak extending forward using CGPath
+  - Wing shape with curved path for visual interest
+- Added wing animation on tap: quick rotation (0.6 radians back and forth, 100ms total)
+- Added gentle bob animation during ready state (3pt amplitude, 0.5s cycle using repeatForever)
+- Bob animation is removed on first tap when game starts
+- Added death spin animation: applies angular impulse (0.08) on death, delays freeze by 0.4s
+- Updated ghost bird to simpler circle at 0.5 alpha (increased from 0.3) for better visibility
+- Physics body still uses circleOfRadius 18 for consistent collision detection
+
+Files changed:
+- FlapFight/Game/GameScene.swift
+
+**Learnings for future iterations:**
+- Composed bird nodes require a container SKShapeNode as the parent
+- Child nodes (eye, beak, wing) are positioned relative to container's center
+- Use CGMutablePath for custom shapes like beaks and wings
+- Wing animation is triggered in handleTap() after the impulse is applied
+- Bob animation must be given a key ("bob") so it can be removed later
+- Death animation delay allows spin to play out before freezing physics
+- Angular impulse creates natural tumble effect (0.08 is a good value)
+- Ghost bird remains simple circle - no need for detailed rendering since it's semi-transparent
+---
