@@ -102,6 +102,14 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
   }
 
   override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    // Visual debug: flash the bird so we know taps are arriving
+    let flash = SKAction.sequence([
+      SKAction.run { [weak self] in self?.bird.fillColor = SKColor.red.withAlphaComponent(0.95) },
+      SKAction.wait(forDuration: 0.05),
+      SKAction.run { [weak self] in self?.bird.fillColor = SKColor.white.withAlphaComponent(0.92) }
+    ])
+    bird.run(flash)
+
     if isDead {
       onRestartRequested?()
       return

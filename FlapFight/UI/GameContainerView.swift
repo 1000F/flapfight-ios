@@ -9,6 +9,7 @@ struct GameContainerView: View {
   var scene: SKScene {
     let s = GameScene(size: CGSize(width: 390, height: 520))
     s.scaleMode = .resizeFill
+    s.isUserInteractionEnabled = true
     s.onGameOver = { score in
       onGameOver(score)
     }
