@@ -1,199 +1,77 @@
 {
   "project": "FlapFight",
-  "branchName": "ralph/overnight-rebuild",
-  "description": "Full polish pass to make FlapFight a top-tier app: visuals, feel, sound, UX",
+  "branchName": "ralph/fix-physics",
+  "description": "Fix bird physics so tapping doesn't send the bird flying off the top of the screen",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Tune physics for tight, responsive feel",
-      "description": "Adjust gravity, impulse, damping, and add velocity clamping so the bird feels snappy and responsive like the original Flappy Bird. The current feel is floaty and imprecise.",
+      "title": "Set explicit bird mass and tune impulse for controllable flight",
+      "description": "The bird flies off the top of the screen on every tap because the impulse-to-mass ratio is wrong. SpriteKit calculates mass from density × area, making the circle of radius 18 have mass ~1018. The impulse value needs to match. Fix by explicitly setting bird mass to 1.0 and using a small impulse value (typical Flappy Bird SpriteKit games use impulse 4-8 with mass ~1.0).",
       "acceptanceCriteria": [
-        "Increase gravity to around -12 to -15 for snappier fall",
-        "Adjust flapImpulse proportionally so a single tap gives ~80-100pt lift",
-        "Add max fall speed clamping in update() (cap downward velocity at ~500 pts/s)",
-        "Increase linear damping to 0.3 for tighter response",
-        "Reduce angular damping to 0.5 for more natural rotation",
-        "Bird should feel like it has weight — quick fall, punchy flap",
-        "Build succeeds"
+        "Bird physics body mass is explicitly set to 1.0 (birdBody.mass = 1.0)",
+        "Ghost bird physics body mass also set to 1.0",
+        "Gravity adjusted to work with mass 1.0 (try -5 to -8)",
+        "flapImpulse adjusted to work with mass 1.0 (try 3 to 6)",
+        "A single tap should lift the bird about 60-80 points, NOT send it off screen",
+        "Bird should feel responsive: quick upward motion on tap, decisive fall between taps",
+        "The bird should be playable — able to navigate through pipe gaps (170pt) with timed taps",
+        "maxFallSpeed clamping still works (adjust if needed for new mass)",
+        "Build succeeds and test by running in simulator to verify bird stays on screen"
       ],
       "priority": 1,
-      "passes": true,
-      "notes": "GameScene.swift lines 6-11 for tunables, lines 93-96 for damping. Test by feel — bird should reach apex quickly after tap and fall decisively."
+      "passes": false,
+      "notes": "GameScene.swift line 240: after creating birdBody, set birdBody.mass = 1.0. Same for ghost at line 268. Adjust gravity (line 6) and flapImpulse (line 7). TEST IN SIMULATOR: run the app, tap multiple times rapidly, bird should bounce up and down within the screen bounds (390x520), never flying off the top (y > 580). Start with gravity=-6, impulse=4.5, mass=1.0 and adjust from there."
     },
     {
       "id": "US-002",
-      "title": "Replace circle bird with a stylized character",
-      "description": "The bird is currently a plain white circle. Replace it with a composed SKNode that looks like an actual bird using SKShapeNode paths — body, eye, beak, and a wing that animates on tap. Keep it programmatic (no image assets). Match the neo/brutal aesthetic with white/red colors.",
+      "title": "Add upward velocity clamping",
+      "description": "Even with correct impulse, rapid tapping could accumulate upward velocity. Add a max upward speed cap to prevent the bird from ever flying off the top of the screen.",
       "acceptanceCriteria": [
-        "Bird is a composed SKNode with body, eye dot, triangular beak, and wing shape",
-        "Body is still roughly 18pt radius for physics but visually more interesting",
-        "Wing animates on each tap (quick rotation or scale, 100ms)",
-        "Bird bobs gently up/down (~3pt amplitude, ~2Hz) during ready state (hasStarted==false)",
-        "Death adds a spin/tumble animation (angular impulse) before freezing",
-        "Ghost bird keeps the simpler circle shape but at 0.5 alpha (more visible)",
-        "Physics body remains circleOfRadius 18 for consistent collision",
+        "Add maxRiseSpeed constant (e.g. 300-400 pts/s)",
+        "In update(), clamp bird's upward velocity: if vy > maxRiseSpeed, set vy = maxRiseSpeed",
+        "Rapid tapping (spam tapping) should NOT send the bird off screen",
+        "Bird can still reach the top area of the screen but velocity is capped",
         "Build succeeds"
       ],
       "priority": 2,
-      "passes": true,
-      "notes": "Use SKShapeNode with CGPath for the beak and wing. Add the eye as a small filled circle child node. The wing can be an arc or triangle that rotates on tap."
+      "passes": false,
+      "notes": "In update() near the existing maxFallSpeed clamp. Add: if let vy = bird.physicsBody?.velocity.dy, vy > maxRiseSpeed { bird.physicsBody?.velocity.dy = maxRiseSpeed }"
     },
     {
       "id": "US-003",
-      "title": "Make pipes clearly visible with neo styling",
-      "description": "Pipes are nearly invisible (15% fill opacity). Make them prominent with higher contrast and a colored accent. They should read instantly as obstacles.",
+      "title": "Verify and fix ghost bird physics to match player bird",
+      "description": "Ghost bird must use the same mass, gravity, and impulse as the player bird so replays are accurate.",
       "acceptanceCriteria": [
-        "Pipe fill opacity increased to 0.25-0.35 (semi-translucent, not solid)",
-        "Pipe stroke opacity increased to 0.6-0.8 with lineWidth 2",
-        "Add a subtle colored accent: faint red or cyan inner glow/stroke",
-        "Pipe end caps: add a wider rectangle (pipeWidth + 12) at the gap-facing end of each pipe, 8pt tall",
-        "Pipes should be immediately obvious against the dark background",
+        "Ghost bird has same mass as player bird (1.0)",
+        "Ghost bird impulse uses same flapImpulse value",
+        "Ghost replay visually matches what the original player did",
         "Build succeeds"
       ],
       "priority": 3,
-      "passes": true,
-      "notes": "GameScene.swift pipeNode() at line 311-326. End caps are a child SKShapeNode positioned at the gap-facing edge. Keep cornerRadius on main body."
+      "passes": false,
+      "notes": "Ghost bird physics body is created around line 268. Ensure ghostBody.mass = 1.0 matches birdBody.mass."
     },
     {
       "id": "US-004",
-      "title": "Add visible ground with scrolling texture",
-      "description": "The ground is currently an invisible physics collider. Add a visible ground bar that scrolls left with the pipes to create a sense of forward motion.",
+      "title": "Final play-test tuning pass in simulator",
+      "description": "Run the game in the iOS simulator and verify the complete gameplay loop works: hover → first tap starts gravity → tap to flap through pipes → score → die → restart.",
       "acceptanceCriteria": [
-        "Visible ground bar at y=40, full width, ~40pt tall",
-        "Ground color: white at ~20% opacity with a brighter top edge line",
-        "Ground scrolls left at the same speed as pipes (scrollSpeed)",
-        "Ground repeats seamlessly (two ground nodes that cycle)",
-        "Ground is behind pipes but in front of background (zPosition between -5 and 0)",
+        "Bird hovers on launch (isDynamic=false)",
+        "First tap starts gravity (bird falls), no flap impulse applied",
+        "Subsequent taps give controlled upward boost",
+        "Bird can navigate through 170pt pipe gaps with timed taps",
+        "Bird never flies off top of screen even with rapid tapping",
+        "Bird falls and hits ground if not tapping (death triggers correctly)",
+        "Score increments when passing pipes",
+        "Death screen appears with correct messaging",
+        "Restart works after cooldown",
+        "Near-miss effects trigger when close to pipes",
+        "If any of the above fail, fix the issue before marking as complete",
         "Build succeeds"
       ],
       "priority": 4,
-      "passes": true,
-      "notes": "Create two side-by-side ground rectangles. In update(), move both left. When one goes fully off-screen, reposition it to the right of the other."
-    },
-    {
-      "id": "US-005",
-      "title": "Add background depth with parallax layers",
-      "description": "The background is flat. Add 2 subtle parallax layers that scroll at different speeds to create depth. Keep it minimal and dark — neo/brutal aesthetic.",
-      "acceptanceCriteria": [
-        "Far layer: very faint horizontal lines or dots, scrolling at 20% of pipe speed",
-        "Mid layer: slightly brighter subtle shapes, scrolling at 50% of pipe speed",
-        "Both layers use white with very low opacity (5-12%)",
-        "Layers repeat seamlessly like the ground",
-        "Layers only scroll when hasStarted is true",
-        "Do not obscure pipes or bird visibility",
-        "Build succeeds"
-      ],
-      "priority": 5,
-      "passes": true,
-      "notes": "Create each layer as a wide SKShapeNode or set of small nodes. Scroll in update() using scaledDt multiplied by the layer's speed factor."
-    },
-    {
-      "id": "US-006",
-      "title": "Add particle effects for score, near-miss, and death",
-      "description": "Add SpriteKit particle effects for key game events. Use SKEmitterNode created programmatically (no .sks files).",
-      "acceptanceCriteria": [
-        "Score: 5-8 small white particles burst upward from bird position, fade out over 0.4s",
-        "Near-miss: 3-5 cyan spark particles around bird, random angles, fade over 0.3s",
-        "Death: 12-15 red/white particles explode outward from bird position, fade over 0.5s",
-        "All particles are programmatic SKEmitterNode (no asset files)",
-        "Particles auto-remove after completing",
-        "Build succeeds"
-      ],
-      "priority": 6,
-      "passes": true,
-      "notes": "Create helper method makeEmitter(color:count:speed:lifetime:). Call from didBegin() for score, triggerNearMiss() for near-miss, and die() for death. Set emitter.targetNode = self."
-    },
-    {
-      "id": "US-007",
-      "title": "Improve sound design with richer synthesis",
-      "description": "Current sounds are basic single-frequency tones. Make them more interesting with frequency sweeps, harmonics, and better envelopes while keeping them procedural.",
-      "acceptanceCriteria": [
-        "Flap: frequency sweep 2200→1600 Hz over 80ms, exponential decay",
-        "Score: two-tone chord (880 + 1100 Hz), 120ms, exponential decay",
-        "Death: low rumble 150→60 Hz sweep over 200ms",
-        "Near-miss: high shimmer 2800 Hz with vibrato (±200 Hz at 30 Hz), 60ms",
-        "All sounds still procedural — no audio asset files",
-        "Master volume stays at 0.3",
-        "Build succeeds"
-      ],
-      "priority": 7,
-      "passes": true,
-      "notes": "GameFX.swift GameAudio class. Extend tone() to support freq sweeps (lerp freq over time), chords (sum waveforms), exponential envelopes (pow(1-t/dur, 2))."
-    },
-    {
-      "id": "US-008",
-      "title": "Polish death screen with conditional messaging and animation",
-      "description": "The death overlay just says 'DEAD' regardless of performance. Make it responsive to how the player did, with entrance animation.",
-      "acceptanceCriteria": [
-        "If new best score: show 'NEW BEST!' in gold/yellow above the score",
-        "Score displays large (36pt+) with the actual number prominent",
-        "If challenge mode and score >= target: show 'YOU WIN!' instead of 'DEAD'",
-        "If challenge mode and score < target: show 'SO CLOSE!' with target comparison",
-        "Overlay slides up from below with a subtle bounce animation",
-        "Tap-to-restart text pulses gently (opacity animation)",
-        "Build succeeds"
-      ],
-      "priority": 8,
-      "passes": true,
-      "notes": "showDeathOverlay() in GameScene.swift. Add a bestScore property to GameScene so it can detect new records. Pass bestScore from RootView via GameContainerView."
-    },
-    {
-      "id": "US-009",
-      "title": "Polish ready state with animated hint",
-      "description": "The ready state shows small 'TAP' text. Make it more engaging with a pulsing hint and ensure nothing starts before the first tap.",
-      "acceptanceCriteria": [
-        "TAP text is larger (24pt) and pulses (opacity 0.4→1.0 loop, ~1.5s cycle)",
-        "Hint text fades out over 200ms on first tap instead of instant removal",
-        "Pipes don't spawn until after first tap",
-        "Score label is hidden during ready state, appears on first tap",
-        "Build succeeds"
-      ],
-      "priority": 9,
-      "passes": true,
-      "notes": "GameScene.swift buildScene() for hint creation, handleTap() for removal. Use SKAction.repeatForever for pulse."
-    },
-    {
-      "id": "US-010",
-      "title": "Add restart cooldown to prevent accidental double-tap",
-      "description": "After death, the next tap immediately restarts. Add a brief cooldown to prevent accidental restarts.",
-      "acceptanceCriteria": [
-        "After death, ignore taps for 0.8 seconds before allowing restart",
-        "The 'Tap to restart' text only appears after the cooldown expires",
-        "Build succeeds"
-      ],
-      "priority": 10,
-      "passes": true,
-      "notes": "Add canRestart flag, set false on death, true after 0.8s SKAction delay. Check in handleTap()."
-    },
-    {
-      "id": "US-011",
-      "title": "Improve challenge mode UX",
-      "description": "Challenge mode starts without context. Add intro messaging and improve the code input flow.",
-      "acceptanceCriteria": [
-        "Before challenge starts, show target score and 'Beat this!' during ready state",
-        "Ghost bird label shown briefly at start then fades",
-        "Invalid challenge code shows error in the input sheet (not silent failure)",
-        "Challenge code input has a paste button",
-        "Build succeeds"
-      ],
-      "priority": 11,
       "passes": false,
-      "notes": "RootView.swift for challenge input. GameScene ready state for intro messaging."
-    },
-    {
-      "id": "US-012",
-      "title": "Force dark mode and hide status bar",
-      "description": "Ensure consistent dark appearance and hide status bar for full immersion.",
-      "acceptanceCriteria": [
-        "App forces dark mode via Info.plist (UIUserInterfaceStyle = Dark)",
-        "Status bar is hidden (UIStatusBarHidden = true)",
-        "Set in Info.plist properties in project.yml",
-        "Run xcodegen generate after changes",
-        "Build succeeds"
-      ],
-      "priority": 12,
-      "passes": false,
-      "notes": "project.yml info.properties section. Add UIUserInterfaceStyle and UIStatusBarHidden."
+      "notes": "Run: xcodebuild -project FlapFight.xcodeproj -scheme FlapFight -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build && open -a Simulator. Play several rounds and verify all criteria."
     }
   ]
 }
