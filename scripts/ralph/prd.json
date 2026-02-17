@@ -51,7 +51,7 @@
         "Build succeeds"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "GameScene.swift pipeNode() at line 311-326. End caps are a child SKShapeNode positioned at the gap-facing edge. Keep cornerRadius on main body."
     },
     {

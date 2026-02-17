@@ -48,3 +48,26 @@ Files changed:
 - Angular impulse creates natural tumble effect (0.08 is a good value)
 - Ghost bird remains simple circle - no need for detailed rendering since it's semi-transparent
 ---
+## 2026-02-17 02:30 MST - US-003
+- Implemented neo styling for pipes with enhanced visibility
+- Increased pipe fill opacity from 0.15 to 0.3 (semi-translucent)
+- Increased pipe stroke opacity from 0.35 to 0.7 with lineWidth 2 (up from 1.5)
+- Added subtle red accent: inner stroke (pipeWidth - 4) with red color at 0.25 alpha
+- Added end caps at gap-facing edges:
+  - Cap dimensions: pipeWidth + 12 wide, 8pt tall
+  - Cap positioned at bottom for top pipes, top for bottom pipes
+  - Cap fill: white 0.35 alpha, stroke: white 0.8 alpha with lineWidth 2
+- Modified pipeNode() to accept isTop parameter for correct cap placement
+- Updated spawnPipePair() calls to pass isTop: true/false appropriately
+
+Files changed:
+- FlapFight/Game/GameScene.swift
+
+**Learnings for future iterations:**
+- pipeNode() is now at line ~393 (after bird creation code)
+- Pipe caps are child nodes positioned relative to pipe center using actualHeight/2 offset
+- Top pipes have caps at negative Y (bottom edge), bottom pipes at positive Y (top edge)
+- Inner accent stroke creates subtle depth by being slightly smaller than main pipe
+- Accent stroke uses cornerRadius one size smaller than parent for proper inset appearance
+- Build time is ~30-40 seconds with xcodebuild -quiet
+---
