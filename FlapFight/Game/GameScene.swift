@@ -22,6 +22,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
   private var ghostBird: SKShapeNode?
   private var ghostTapIndex = 0
   private var ground = SKNode()
+  private var groundVisual1 = SKShapeNode()
+  private var groundVisual2 = SKShapeNode()
   private var isDead = false
   private var hasStarted = false
 
@@ -104,6 +106,22 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     return container
   }
 
+  private func makeGroundNode(width: CGFloat, height: CGFloat) -> SKShapeNode {
+    let ground = SKShapeNode(rectOf: CGSize(width: width, height: height))
+    ground.fillColor = SKColor.white.withAlphaComponent(0.20)
+    ground.strokeColor = .clear
+    ground.name = "groundVisual"
+
+    // Brighter top edge line
+    let topLine = SKShapeNode(rectOf: CGSize(width: width, height: 2))
+    topLine.fillColor = SKColor.white.withAlphaComponent(0.6)
+    topLine.strokeColor = .clear
+    topLine.position = CGPoint(x: 0, y: height / 2)
+    ground.addChild(topLine)
+
+    return ground
+  }
+
   private func buildScene() {
     removeAllChildren()
     isDead = false
@@ -130,6 +148,19 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     groundBody.isDynamic = false
     ground.physicsBody = groundBody
     addChild(ground)
+
+    // Visual ground (scrolling)
+    let groundHeight: CGFloat = 40
+    let groundY: CGFloat = 40
+    groundVisual1 = makeGroundNode(width: size.width, height: groundHeight)
+    groundVisual1.position = CGPoint(x: size.width / 2, y: groundY)
+    groundVisual1.zPosition = -2
+    addChild(groundVisual1)
+
+    groundVisual2 = makeGroundNode(width: size.width, height: groundHeight)
+    groundVisual2.position = CGPoint(x: size.width * 1.5, y: groundY)
+    groundVisual2.zPosition = -2
+    addChild(groundVisual2)
 
     // Bird
     let birdRadius: CGFloat = 18
@@ -304,6 +335,18 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
       if node.position.x < -200 {
         node.removeFromParent()
       }
+    }
+
+    // Scroll ground
+    groundVisual1.position.x -= scrollSpeed * scaledDt
+    groundVisual2.position.x -= scrollSpeed * scaledDt
+
+    // Reset ground positions for seamless looping
+    if groundVisual1.position.x < -size.width / 2 {
+      groundVisual1.position.x = groundVisual2.position.x + size.width
+    }
+    if groundVisual2.position.x < -size.width / 2 {
+      groundVisual2.position.x = groundVisual1.position.x + size.width
     }
 
     // Near-miss detection
