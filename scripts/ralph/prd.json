@@ -109,7 +109,7 @@
         "Build succeeds"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": "Use UIGraphicsImageRenderer to draw the card programmatically. Keep it simple - text on dark background with accent colors."
     },
     {

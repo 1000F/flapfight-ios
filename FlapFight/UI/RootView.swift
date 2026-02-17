@@ -99,24 +99,53 @@ struct RootView: View {
         .padding(.bottom, 18)
 
         // Show last challenge code if available
-        if let code = lastChallengeCode {
-          VStack(spacing: 8) {
-            Text("Challenge Code")
-              .font(.system(size: 11, weight: .bold, design: .rounded))
-              .foregroundStyle(.white.opacity(0.55))
+        if let code = lastChallengeCode, let last = lastScore {
+          VStack(spacing: 12) {
+            VStack(spacing: 8) {
+              Text("Challenge Code")
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.55))
 
-            Text(code)
-              .font(.system(size: 16, weight: .heavy, design: .monospaced))
-              .tracking(1)
-              .foregroundStyle(.white.opacity(0.95))
-              .padding(.horizontal, 14)
-              .padding(.vertical, 10)
-              .background(.white.opacity(0.06))
-              .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                  .stroke(.white.opacity(0.10), lineWidth: 1)
+              Text(code)
+                .font(.system(size: 16, weight: .heavy, design: .monospaced))
+                .tracking(1)
+                .foregroundStyle(.white.opacity(0.95))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(.white.opacity(0.06))
+                .overlay(
+                  RoundedRectangle(cornerRadius: 10)
+                    .stroke(.white.opacity(0.10), lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+
+            // Share button
+            ShareLink(
+              item: generateShareImage(score: last, code: code),
+              subject: Text("FlapFight Challenge"),
+              message: Text("I scored \(last) in FlapFight! Can you beat me? Code: \(code)"),
+              preview: SharePreview("FlapFight Challenge", image: generateShareImage(score: last, code: code))
+            ) {
+              HStack(spacing: 6) {
+                Image(systemName: "square.and.arrow.up")
+                  .font(.system(size: 14, weight: .bold))
+                Text("SHARE CHALLENGE")
+                  .font(.system(size: 14, weight: .heavy, design: .rounded))
+                  .tracking(1)
+              }
+              .foregroundStyle(.white)
+              .frame(maxWidth: .infinity)
+              .padding(.vertical, 12)
+              .background(
+                LinearGradient(colors: [Color.purple, Color.blue], startPoint: .leading, endPoint: .trailing)
               )
-              .clipShape(RoundedRectangle(cornerRadius: 10))
+              .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                  .stroke(.white.opacity(0.25), lineWidth: 1)
+              )
+              .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
           }
           .padding(.horizontal, 16)
           .padding(.bottom, 12)
@@ -136,6 +165,12 @@ struct RootView: View {
         }
       )
     }
+  }
+
+  private func generateShareImage(score: Int, code: String) -> Image {
+    let card = ShareCard(score: score, bestScore: bestScore, challengeCode: code)
+    let uiImage = card.generateImage()
+    return Image(uiImage: uiImage)
   }
 }
 

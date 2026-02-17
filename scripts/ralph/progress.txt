@@ -95,3 +95,19 @@ Started: 2026-02-16
   - Challenge code length varies with tap count but stays reasonable (~30-60 chars typical)
   - Ghost automatically appears in challenge mode via ghostTapTimestamps
 ---
+## 2026-02-16 16:05 - US-007
+- Created ShareCard struct with generateImage() method
+- Uses UIGraphicsImageRenderer for programmatic image generation
+- 1080x1920 portrait format suitable for social sharing
+- Dark neo aesthetic: dark background (0.03, 0.04, 0.06) with radial gradients
+- Displays: title (FLAPFIGHT), score (large), best score, challenge code (in box), CTA
+- Challenge code shown in rounded box with translucent background
+- Custom radial gradient helper for red/green accent glows
+- Files changed: FlapFight/UI/ShareCard.swift (new file)
+- Build succeeded after xcodegen generate
+- **Learnings for future iterations:**
+  - UIGraphicsImageRenderer is clean API for generating images
+  - NSAttributedString.Key for text styling (font, color, kerning)
+  - CGContext for drawing primitives (fills, strokes, gradients)
+  - Radial gradients need saveGState/restoreGState for isolation
+---
