@@ -67,7 +67,7 @@
         "Build succeeds"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "Create two side-by-side ground rectangles. In update(), move both left. When one goes fully off-screen, reposition it to the right of the other."
     },
     {

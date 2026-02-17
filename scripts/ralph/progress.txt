@@ -71,3 +71,30 @@ Files changed:
 - Accent stroke uses cornerRadius one size smaller than parent for proper inset appearance
 - Build time is ~30-40 seconds with xcodebuild -quiet
 ---
+## 2026-02-17 03:45 MST - US-004
+- Implemented visible scrolling ground with seamless looping
+- Added two properties: groundVisual1 and groundVisual2 for the repeating ground segments
+- Created makeGroundNode() helper that returns a SKShapeNode with:
+  - White fill at 20% opacity for the main ground bar (~40pt tall)
+  - Brighter top edge line (2pt tall, 60% opacity) for visual definition
+- Ground positioned at y=40 with zPosition=-2 (behind pipes, in front of background)
+- Both ground segments start side-by-side at full screen width each
+- Added scrolling logic in update():
+  - Moves both ground nodes left at scrollSpeed * scaledDt
+  - When a ground segment moves past -size.width/2, it repositions to the right of the other segment
+  - Creates seamless infinite scrolling effect
+- Ground only scrolls when hasStarted is true (same as pipes)
+
+Files changed:
+- FlapFight/Game/GameScene.swift
+
+**Learnings for future iterations:**
+- Ground visual nodes are properties on GameScene (groundVisual1, groundVisual2)
+- makeGroundNode() helper at line ~107-119 creates ground segments with top edge accent
+- Ground scrolling logic added in update() at line ~326-336 (after scoreZone movement)
+- Two-segment pattern: when one goes offscreen left, reposition to right of the other
+- Check position.x < -size.width/2 to detect when segment is fully offscreen
+- Reset position by setting to other_segment.position.x + size.width for seamless loop
+- zPosition=-2 puts ground behind pipes (which are at default 0) but in front of bg (which is at -10)
+- Build time remains consistent at ~30-40 seconds
+---
