@@ -11,10 +11,15 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
   private let pipeSpawnEvery: TimeInterval = 1.35
 
   // MARK: - State
+  var seed: UInt64 = UInt64.random(in: 0...UInt64.max)
+  var targetScore: Int? = nil
+  var ghostTapTimestamps: [TimeInterval]? = nil
   var onGameOver: ((Int) -> Void)?
   var onRestartRequested: (() -> Void)?
 
   private var bird = SKShapeNode()
+  private var ghostBird: SKShapeNode?
+  private var ghostTapIndex = 0
   private var ground = SKNode()
   private var isDead = false
 
@@ -23,6 +28,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
   private var lastUpdate: TimeInterval = 0
   private var spawnAccumulator: TimeInterval = 0
+  private var gameStartTime: TimeInterval = 0
+  private(set) var tapTimestamps: [TimeInterval] = []
+
+  private var rng: GKMersenneTwisterRandomSource!
 
   // FX
   private let audio = GameAudio()
@@ -49,6 +58,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     removeAllChildren()
     isDead = false
     score = 0
+    tapTimestamps = []
+
+    // Initialize seeded RNG
+    rng = GKMersenneTwisterRandomSource(seed: seed)
 
     // Subtle grid background
     let bg = SKShapeNode(rect: frame)
@@ -86,9 +99,35 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     addChild(bird)
 
+    // Ghost bird (if replay data provided)
+    if let _ = ghostTapTimestamps {
+      ghostBird = SKShapeNode(circleOfRadius: 14)
+      ghostBird!.fillColor = SKColor.cyan.withAlphaComponent(0.30)
+      ghostBird!.strokeColor = SKColor.cyan.withAlphaComponent(0.50)
+      ghostBird!.lineWidth = 2
+      ghostBird!.position = CGPoint(x: size.width * 0.34, y: size.height * 0.55)
+
+      let ghostBody = SKPhysicsBody(circleOfRadius: 14)
+      ghostBody.allowsRotation = true
+      ghostBody.linearDamping = 0.1
+      ghostBody.angularDamping = 0.9
+      ghostBody.categoryBitMask = 0 // No category
+      ghostBody.collisionBitMask = 0 // Pass through everything
+      ghostBody.contactTestBitMask = 0 // No contacts
+      ghostBird!.physicsBody = ghostBody
+
+      addChild(ghostBird!)
+      ghostTapIndex = 0
+    }
+
     // Score label
-    scoreLabel = SKLabelNode(text: "0")
-    scoreLabel.fontSize = 42
+    if let target = targetScore {
+      scoreLabel = SKLabelNode(text: "0 / \(target)")
+      scoreLabel.fontSize = 36
+    } else {
+      scoreLabel = SKLabelNode(text: "0")
+      scoreLabel.fontSize = 42
+    }
     scoreLabel.fontColor = SKColor.white.withAlphaComponent(0.9)
     scoreLabel.position = CGPoint(x: size.width/2, y: size.height - 90)
     scoreLabel.zPosition = 5
@@ -121,6 +160,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
       return
     }
 
+    // Record tap timestamp relative to game start
+    let relativeTime = lastUpdate - gameStartTime
+    tapTimestamps.append(relativeTime)
+
     Haptics.flap()
     audio.playFlap()
 
@@ -136,11 +179,35 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
   }
 
   override func update(_ currentTime: TimeInterval) {
-    if lastUpdate == 0 { lastUpdate = currentTime }
+    if lastUpdate == 0 {
+      lastUpdate = currentTime
+      gameStartTime = currentTime
+    }
     let dt = currentTime - lastUpdate
     lastUpdate = currentTime
 
     if isDead { return }
+
+    // Ghost replay
+    if let timestamps = ghostTapTimestamps,
+       let ghost = ghostBird,
+       ghostTapIndex < timestamps.count {
+      let currentGameTime = currentTime - gameStartTime
+      if currentGameTime >= timestamps[ghostTapIndex] {
+        // Replay tap on ghost
+        ghost.physicsBody?.velocity = CGVector(dx: 0, dy: 0)
+        ghost.physicsBody?.applyImpulse(CGVector(dx: 0, dy: flapImpulse))
+        ghostTapIndex += 1
+      }
+    }
+
+    // Check if ghost died (out of bounds)
+    if let ghost = ghostBird {
+      if ghost.position.y < 0 || ghost.position.y > size.height + 60 {
+        ghost.removeFromParent()
+        ghostBird = nil
+      }
+    }
 
     spawnAccumulator += dt
     if spawnAccumulator >= pipeSpawnEvery {
@@ -200,12 +267,19 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     if let vy = bird.physicsBody?.velocity.dy {
       bird.zRotation = max(min(vy / 900, 0.8), -0.8)
     }
+
+    // Tilt ghost bird too
+    if let ghost = ghostBird, let vy = ghost.physicsBody?.velocity.dy {
+      ghost.zRotation = max(min(vy / 900, 0.8), -0.8)
+    }
   }
 
   private func spawnPipePair() {
     let minY: CGFloat = 110
     let maxY: CGFloat = size.height - 140
-    let centerY = CGFloat.random(in: minY...maxY)
+    // Use seeded RNG for deterministic pipe generation
+    let normalizedRandom = CGFloat(rng.nextUniform()) // 0.0...1.0
+    let centerY = minY + normalizedRandom * (maxY - minY)
 
     let topHeight = (size.height - centerY) - (pipeGap/2)
     let bottomHeight = (centerY - (pipeGap/2))
@@ -260,7 +334,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     if mask & Category.score != 0 && mask & Category.bird != 0 {
       score += 1
-      scoreLabel.text = "\(score)"
+      if let target = targetScore {
+        scoreLabel.text = "\(score) / \(target)"
+      } else {
+        scoreLabel.text = "\(score)"
+      }
 
       Haptics.score()
       audio.playScore()

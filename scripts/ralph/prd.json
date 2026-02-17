@@ -1,0 +1,131 @@
+{
+  "project": "FlapFight",
+  "branchName": "ralph/m2-m4-features",
+  "description": "Implement M2 (deterministic seed + challenge codes), M3 (ghost duel), and M4 (share card)",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Deterministic seeded pipe generation",
+      "description": "Replace CGFloat.random in spawnPipePair() with a seeded PRNG so the same seed always produces the same pipe sequence. Add a seed property to GameScene that defaults to a random value for classic mode.",
+      "acceptanceCriteria": [
+        "GameScene has a public `seed: UInt64` property",
+        "spawnPipePair() uses a seeded GKRandomSource (or similar) instead of CGFloat.random",
+        "Playing with the same seed produces identical pipe positions every time",
+        "Classic mode still uses a random seed each run",
+        "Build succeeds: xcodebuild -project FlapFight.xcodeproj -scheme FlapFight -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -quiet build"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "GameScene.swift:171 is where CGFloat.random is used. Use GKMersenneTwisterRandomSource seeded with the seed value."
+    },
+    {
+      "id": "US-002",
+      "title": "Challenge code encoder/decoder",
+      "description": "Create a ChallengeCode struct that encodes a seed + target score into a short shareable string (e.g. base32/base36) and decodes it back. No UI yet, just the data layer.",
+      "acceptanceCriteria": [
+        "ChallengeCode struct with `seed: UInt64` and `targetScore: Int` properties",
+        "encode() returns a short alphanumeric string (8-12 chars)",
+        "decode(code:) returns a ChallengeCode? from a string",
+        "Round-trip: decode(encode(code)) == original code",
+        "File location: FlapFight/Game/ChallengeCode.swift",
+        "Build succeeds"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Challenge mode UI and flow",
+      "description": "Add UI to enter a challenge code and play challenge mode. Show the target score during gameplay. Wire up code generation after a classic run.",
+      "acceptanceCriteria": [
+        "After a classic run, the death overlay shows a challenge code for that run",
+        "RootView has a text field or input to paste a challenge code",
+        "Entering a code starts a game with that seed, showing target score in the HUD",
+        "GameScene accepts a challengeCode parameter and uses its seed",
+        "CHALLENGE button in RootView is functional",
+        "Build succeeds"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "RootView.swift already has a CHALLENGE button placeholder. GameMode enum already exists with .classic case - add .challenge(ChallengeCode)."
+    },
+    {
+      "id": "US-004",
+      "title": "Record tap timestamps during gameplay",
+      "description": "Record the timestamp of every tap during a game run, relative to game start. Store as an array of TimeInterval. This data will be used for ghost replay.",
+      "acceptanceCriteria": [
+        "GameScene records tap timestamps in an array during gameplay",
+        "Timestamps are relative to game start (first frame), not wall clock",
+        "Array is accessible after game over for encoding",
+        "Array resets on restart",
+        "Build succeeds"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "Record in handleTap() using the currentTime from the update loop."
+    },
+    {
+      "id": "US-005",
+      "title": "Ghost bird replay from tap timestamps",
+      "description": "Add a ghost bird node that replays a recorded tap sequence. The ghost uses the same physics (gravity, impulse) but is rendered as a translucent outline. It runs independently of the player bird.",
+      "acceptanceCriteria": [
+        "GameScene can accept an array of tap timestamps for ghost replay",
+        "Ghost bird is a semi-transparent node (e.g. 30% opacity, different color)",
+        "Ghost replays taps at the recorded timestamps using the same physics",
+        "Ghost does not collide with pipes (no physics contact)",
+        "Ghost is visible during challenge mode gameplay",
+        "Build succeeds"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "Ghost bird needs its own physics body with contactTestBitMask = 0 and collisionBitMask = 0 so it passes through everything."
+    },
+    {
+      "id": "US-006",
+      "title": "Integrate ghost with challenge codes",
+      "description": "Extend the challenge code to include tap timestamps so the ghost duel is fully self-contained. When a challenge code is received, the ghost replays the challenger's run.",
+      "acceptanceCriteria": [
+        "ChallengeCode includes tap timestamp data",
+        "Challenge code string is still shareable (may be longer but still text-based)",
+        "Receiving a challenge code shows the ghost of the original player",
+        "Ghost disappears if it dies (hits a pipe at the ghost's Y position)",
+        "Build succeeds"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "The code will be longer with tap data. Consider compressing the timestamps (delta encoding + base64). Keep it under ~200 chars if possible."
+    },
+    {
+      "id": "US-007",
+      "title": "Generate share card image",
+      "description": "After a game over, generate a shareable image card with the score, best score, challenge code, and a CTA. Match the dark neo aesthetic.",
+      "acceptanceCriteria": [
+        "ShareCard struct/class generates a UIImage",
+        "Card shows: score, best score, challenge code text, 'Can you beat me?' CTA",
+        "Dark background matching app theme",
+        "Image is suitable for sharing (roughly 1080x1920 or square)",
+        "File location: FlapFight/UI/ShareCard.swift",
+        "Build succeeds"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "Use UIGraphicsImageRenderer to draw the card programmatically. Keep it simple - text on dark background with accent colors."
+    },
+    {
+      "id": "US-008",
+      "title": "Share sheet integration",
+      "description": "Add a share button that presents UIActivityViewController with the share card image and challenge code text.",
+      "acceptanceCriteria": [
+        "Share button visible on death overlay or RootView",
+        "Tapping share opens iOS share sheet",
+        "Share sheet includes the generated card image and challenge code as text",
+        "Works correctly with Messages, Instagram, etc.",
+        "Build succeeds"
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": "Use SwiftUI's ShareLink or wrap UIActivityViewController. The share button should appear after game over."
+    }
+  ]
+}
