@@ -3,13 +3,14 @@ import GameplayKit
 
 final class GameScene: SKScene, SKPhysicsContactDelegate {
   // MARK: - Tunables
-  private let gravity: CGFloat = -9.8
-  private let flapImpulse: CGFloat = 185
+  private let gravity: CGFloat = -1400       // pts/s² — strong pull for snappy game feel
+  private let flapVelocity: CGFloat = 480    // pts/s — set directly, bypasses mass issues
   private let scrollSpeed: CGFloat = 160
   private let pipeGap: CGFloat = 170
   private let pipeWidth: CGFloat = 64
   private let pipeSpawnEvery: TimeInterval = 1.35
-  private let maxFallSpeed: CGFloat = 500
+  private let maxFallSpeed: CGFloat = 700
+  private let maxRiseSpeed: CGFloat = 500    // cap upward velocity to prevent flying off screen
 
   // MARK: - State
   var seed: UInt64 = UInt64.random(in: 0...UInt64.max)
@@ -238,8 +239,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     bird.position = CGPoint(x: size.width * 0.34, y: size.height * 0.55)
 
     let birdBody = SKPhysicsBody(circleOfRadius: birdRadius)
+    birdBody.mass = 1.0          // Explicit mass — SpriteKit default is density×area ≈ 1018!
     birdBody.allowsRotation = true
-    birdBody.linearDamping = 0.3
+    birdBody.linearDamping = 0    // No air friction — gravity handles everything
     birdBody.angularDamping = 0.5
     birdBody.categoryBitMask = Category.bird
     birdBody.collisionBitMask = Category.pipe | Category.ground
@@ -266,8 +268,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
       ghostBird!.position = CGPoint(x: size.width * 0.34, y: size.height * 0.55)
 
       let ghostBody = SKPhysicsBody(circleOfRadius: 18)
+      ghostBody.mass = 1.0          // Match player bird mass
       ghostBody.allowsRotation = true
-      ghostBody.linearDamping = 0.3
+      ghostBody.linearDamping = 0
       ghostBody.angularDamping = 0.5
       ghostBody.categoryBitMask = 0 // No category
       ghostBody.collisionBitMask = 0 // Pass through everything
@@ -388,9 +391,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     Haptics.flap()
     audio.playFlap()
 
-    // flap
-    bird.physicsBody?.velocity = CGVector(dx: 0, dy: 0)
-    bird.physicsBody?.applyImpulse(CGVector(dx: 0, dy: flapImpulse))
+    // flap — set velocity directly (predictable, mass-independent)
+    bird.physicsBody?.velocity = CGVector(dx: 0, dy: flapVelocity)
 
     // Animate wing
     if let wing = bird.childNode(withName: "wing") {
@@ -423,9 +425,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
        ghostTapIndex < timestamps.count {
       let currentGameTime = currentTime - gameStartTime
       if currentGameTime >= timestamps[ghostTapIndex] {
-        // Replay tap on ghost
-        ghost.physicsBody?.velocity = CGVector(dx: 0, dy: 0)
-        ghost.physicsBody?.applyImpulse(CGVector(dx: 0, dy: flapImpulse))
+        // Replay tap on ghost — same direct velocity as player
+        ghost.physicsBody?.velocity = CGVector(dx: 0, dy: flapVelocity)
         ghostTapIndex += 1
       }
     }
@@ -535,6 +536,14 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     if let ghost = ghostBird, let vel = ghost.physicsBody?.velocity, vel.dy < -maxFallSpeed {
       ghost.physicsBody?.velocity = CGVector(dx: vel.dx, dy: -maxFallSpeed)
+    }
+
+    // Clamp rise speed — prevents rapid tapping from flying off top
+    if let vel = bird.physicsBody?.velocity, vel.dy > maxRiseSpeed {
+      bird.physicsBody?.velocity = CGVector(dx: vel.dx, dy: maxRiseSpeed)
+    }
+    if let ghost = ghostBird, let vel = ghost.physicsBody?.velocity, vel.dy > maxRiseSpeed {
+      ghost.physicsBody?.velocity = CGVector(dx: vel.dx, dy: maxRiseSpeed)
     }
 
     // Tilt bird a bit based on vertical velocity
