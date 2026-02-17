@@ -3,8 +3,8 @@ import GameplayKit
 
 final class GameScene: SKScene, SKPhysicsContactDelegate {
   // MARK: - Tunables
-  private let gravity: CGFloat = -14
-  private let flapImpulse: CGFloat = 320
+  private let gravity: CGFloat = -9.8
+  private let flapImpulse: CGFloat = 185
   private let scrollSpeed: CGFloat = 160
   private let pipeGap: CGFloat = 170
   private let pipeWidth: CGFloat = 64
@@ -308,6 +308,35 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
       SKAction.fadeAlpha(to: 1.0, duration: 0.75)
     ])
     hint.run(SKAction.repeatForever(pulse), withKey: "pulse")
+
+    // Challenge mode intro messaging
+    if let target = targetScore {
+      let challengeIntro = SKLabelNode(text: "Beat \(target)!")
+      challengeIntro.fontSize = 18
+      challengeIntro.fontColor = SKColor(red: 1.0, green: 0.6, blue: 0.2, alpha: 0.9)
+      challengeIntro.position = CGPoint(x: size.width/2, y: size.height/2 + 40)
+      challengeIntro.zPosition = 5
+      challengeIntro.name = "challengeIntro"
+      addChild(challengeIntro)
+
+      // Ghost bird label (shown briefly at start)
+      if ghostBird != nil {
+        let ghostLabel = SKLabelNode(text: "Ghost: Target Run")
+        ghostLabel.fontSize = 13
+        ghostLabel.fontColor = SKColor.cyan.withAlphaComponent(0.75)
+        ghostLabel.position = CGPoint(x: size.width/2, y: size.height/2 + 10)
+        ghostLabel.zPosition = 5
+        ghostLabel.name = "ghostLabel"
+        addChild(ghostLabel)
+
+        // Fade out ghost label after 3 seconds
+        ghostLabel.run(SKAction.sequence([
+          SKAction.wait(forDuration: 3.0),
+          SKAction.fadeOut(withDuration: 0.5),
+          SKAction.removeFromParent()
+        ]))
+      }
+    }
 
     // Camera (for screen shake)
     let cam = SKCameraNode()
