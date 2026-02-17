@@ -51,3 +51,16 @@ Started: 2026-02-16
   - Score label dynamically sized (42pt classic, 36pt challenge) to fit target
   - SwiftUI sheet with .dismiss() environment for modal presentation
 ---
+## 2026-02-16 15:50 - US-004
+- Added gameStartTime and tapTimestamps array to GameScene
+- gameStartTime set in update() on first frame
+- tapTimestamps recorded in handleTap() relative to gameStartTime
+- tapTimestamps reset in buildScene()
+- tapTimestamps is private(set) so accessible after game over
+- Files changed: GameScene.swift
+- Build succeeded
+- **Learnings for future iterations:**
+  - Using lastUpdate - gameStartTime gives relative timestamps
+  - private(set) allows external read access but internal write access
+  - Timestamps captured before flap is applied for accurate replay
+---

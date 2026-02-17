@@ -62,7 +62,7 @@
         "Build succeeds"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "Record in handleTap() using the currentTime from the update loop."
     },
     {

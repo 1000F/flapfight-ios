@@ -13,10 +13,13 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
   // MARK: - State
   var seed: UInt64 = UInt64.random(in: 0...UInt64.max)
   var targetScore: Int? = nil
+  var ghostTapTimestamps: [TimeInterval]? = nil
   var onGameOver: ((Int) -> Void)?
   var onRestartRequested: (() -> Void)?
 
   private var bird = SKShapeNode()
+  private var ghostBird: SKShapeNode?
+  private var ghostTapIndex = 0
   private var ground = SKNode()
   private var isDead = false
 
@@ -96,6 +99,27 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     addChild(bird)
 
+    // Ghost bird (if replay data provided)
+    if let _ = ghostTapTimestamps {
+      ghostBird = SKShapeNode(circleOfRadius: 14)
+      ghostBird!.fillColor = SKColor.cyan.withAlphaComponent(0.30)
+      ghostBird!.strokeColor = SKColor.cyan.withAlphaComponent(0.50)
+      ghostBird!.lineWidth = 2
+      ghostBird!.position = CGPoint(x: size.width * 0.34, y: size.height * 0.55)
+
+      let ghostBody = SKPhysicsBody(circleOfRadius: 14)
+      ghostBody.allowsRotation = true
+      ghostBody.linearDamping = 0.1
+      ghostBody.angularDamping = 0.9
+      ghostBody.categoryBitMask = 0 // No category
+      ghostBody.collisionBitMask = 0 // Pass through everything
+      ghostBody.contactTestBitMask = 0 // No contacts
+      ghostBird!.physicsBody = ghostBody
+
+      addChild(ghostBird!)
+      ghostTapIndex = 0
+    }
+
     // Score label
     if let target = targetScore {
       scoreLabel = SKLabelNode(text: "0 / \(target)")
@@ -164,6 +188,27 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     if isDead { return }
 
+    // Ghost replay
+    if let timestamps = ghostTapTimestamps,
+       let ghost = ghostBird,
+       ghostTapIndex < timestamps.count {
+      let currentGameTime = currentTime - gameStartTime
+      if currentGameTime >= timestamps[ghostTapIndex] {
+        // Replay tap on ghost
+        ghost.physicsBody?.velocity = CGVector(dx: 0, dy: 0)
+        ghost.physicsBody?.applyImpulse(CGVector(dx: 0, dy: flapImpulse))
+        ghostTapIndex += 1
+      }
+    }
+
+    // Check if ghost died (out of bounds)
+    if let ghost = ghostBird {
+      if ghost.position.y < 0 || ghost.position.y > size.height + 60 {
+        ghost.removeFromParent()
+        ghostBird = nil
+      }
+    }
+
     spawnAccumulator += dt
     if spawnAccumulator >= pipeSpawnEvery {
       spawnAccumulator = 0
@@ -221,6 +266,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     // Tilt bird a bit based on vertical velocity
     if let vy = bird.physicsBody?.velocity.dy {
       bird.zRotation = max(min(vy / 900, 0.8), -0.8)
+    }
+
+    // Tilt ghost bird too
+    if let ghost = ghostBird, let vy = ghost.physicsBody?.velocity.dy {
+      ghost.zRotation = max(min(vy / 900, 0.8), -0.8)
     }
   }
 
