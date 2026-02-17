@@ -31,6 +31,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
   private var midLayer2 = SKShapeNode()
   private var isDead = false
   private var hasStarted = false
+  private var canRestart = false
 
   private var score = 0
   private var scoreLabel = SKLabelNode(fontNamed: nil)
@@ -171,6 +172,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
   private func buildScene() {
     removeAllChildren()
     isDead = false
+    canRestart = false
     score = 0
     tapTimestamps = []
 
@@ -321,6 +323,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
   func handleTap() {
     if isDead {
+      // Prevent restart during cooldown period
+      if !canRestart { return }
       onRestartRequested?()
       return
     }
@@ -640,6 +644,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
   private func die() {
     guard !isDead else { return }
     isDead = true
+    canRestart = false  // Prevent immediate restart
 
     Haptics.death()
     audio.playDeath()
@@ -702,6 +707,12 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
       SKAction.run { [weak self] in self?.showDeathOverlay() }
     ]))
 
+    // Enable restart after cooldown (0.8s total)
+    run(SKAction.sequence([
+      SKAction.wait(forDuration: 0.8),
+      SKAction.run { [weak self] in self?.enableRestart() }
+    ]), withKey: "restartCooldown")
+
     onGameOver?(score)
   }
 
@@ -718,6 +729,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     overlay.strokeColor = SKColor(white: 1, alpha: 0.12)
     overlay.lineWidth = 1
     overlay.zPosition = 20
+    overlay.name = "deathOverlay"
 
     // Start below screen for slide-up animation
     let finalY = size.height / 2
@@ -788,20 +800,33 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     overlay.addChild(scoreDisplay)
     yOffset -= 46
 
-    // Tap to restart text (with pulsing animation)
+    // Tap to restart text (hidden initially, shown after cooldown)
     let restartHint = SKLabelNode(text: "Tap to restart")
     restartHint.fontSize = 14
     restartHint.fontColor = SKColor.white.withAlphaComponent(0.65)
     restartHint.position = CGPoint(x: 0, y: yOffset)
     restartHint.zPosition = 21
+    restartHint.alpha = 0  // Hidden until cooldown expires
+    restartHint.name = "restartHint"
     overlay.addChild(restartHint)
+  }
 
-    // Pulse animation for restart hint
-    let pulseSequence = SKAction.sequence([
-      SKAction.fadeAlpha(to: 0.35, duration: 0.8),
-      SKAction.fadeAlpha(to: 0.65, duration: 0.8)
-    ])
-    restartHint.run(SKAction.repeatForever(pulseSequence))
+  private func enableRestart() {
+    canRestart = true
+
+    // Show the restart hint with fade-in and pulsing animation
+    if let overlay = childNode(withName: "deathOverlay"),
+       let restartHint = overlay.childNode(withName: "restartHint") as? SKLabelNode {
+      // Fade in the hint
+      restartHint.run(SKAction.fadeAlpha(to: 0.65, duration: 0.3))
+
+      // Start pulsing animation
+      let pulseSequence = SKAction.sequence([
+        SKAction.fadeAlpha(to: 0.35, duration: 0.8),
+        SKAction.fadeAlpha(to: 0.65, duration: 0.8)
+      ])
+      restartHint.run(SKAction.repeatForever(pulseSequence), withKey: "pulse")
+    }
   }
 
   // MARK: - Particle effects
