@@ -17,7 +17,7 @@
         "Build succeeds"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "GameScene.swift lines 6-11 for tunables, lines 93-96 for damping. Test by feel — bird should reach apex quickly after tap and fall decisively."
     },
     {
