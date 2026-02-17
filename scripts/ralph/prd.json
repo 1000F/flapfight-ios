@@ -149,7 +149,7 @@
         "Build succeeds"
       ],
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "notes": "GameScene.swift buildScene() for hint creation, handleTap() for removal. Use SKAction.repeatForever for pulse."
     },
     {

@@ -224,3 +224,25 @@ Files changed:
 - Challenge win detection requires both targetScore != nil check and score >= target comparison
 - Build succeeds, death screen now provides meaningful feedback based on performance
 ---
+## 2026-02-17 09:00 MST - US-009
+- Implemented polished ready state with animated hint
+- Increased TAP text size from 14pt to 24pt for better visibility
+- Added pulsing animation to TAP hint: opacity cycles 0.4→1.0 over 1.5s cycle using SKAction.repeatForever
+- Changed hint removal from instant to 200ms fade-out animation on first tap
+- Score label now starts with alpha=0 (hidden) and fades in over 200ms when game starts
+- Modified update() logic to prevent pipes from spawning until hasStarted is true
+- Split isDead and !hasStarted checks to ensure nothing scrolls or spawns during ready state
+
+Files changed:
+- FlapFight/Game/GameScene.swift
+
+**Learnings for future iterations:**
+- Score label visibility controlled by alpha property (0 = hidden, 1 = visible)
+- SKAction.fadeIn/fadeOut provide smooth transitions for UI elements
+- Pulsing animations use SKAction.repeatForever with sequence of fadeAlpha actions
+- Important to split combined conditionals (if isDead || !hasStarted) when different behaviors needed
+- Ready state must prevent ALL game activity: no pipe spawning, no scrolling, no physics
+- Hint pulsing key is "pulse" for potential future reference
+- Fade durations of 200ms (0.2s) feel smooth without being sluggish
+- Build succeeds, ready state now provides engaging visual feedback
+---
