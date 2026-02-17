@@ -1,0 +1,12 @@
+# Ralph Progress Log
+Started: 2026-02-16
+---
+## Codebase Patterns
+- Build command: `xcodebuild -project FlapFight.xcodeproj -scheme FlapFight -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -quiet build`
+- After adding new .swift files: run `xcodegen generate` before building
+- Game scene size is fixed at 390x520 (set in GameContainerView.swift)
+- Pipe gap centerY range: 110...380 (size.height - 140)
+- All nodes use programmatic SKShapeNode, no textures/assets
+- SwiftUI ↔ SpriteKit bridge: GameContainerView wraps SpriteView, forwards taps via handleTap()
+- GameMode enum exists in RootView.swift (.classic only currently)
+---

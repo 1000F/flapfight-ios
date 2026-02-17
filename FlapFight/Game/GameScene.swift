@@ -11,6 +11,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
   private let pipeSpawnEvery: TimeInterval = 1.35
 
   // MARK: - State
+  var seed: UInt64 = UInt64.random(in: 0...UInt64.max)
   var onGameOver: ((Int) -> Void)?
   var onRestartRequested: (() -> Void)?
 
@@ -23,6 +24,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
   private var lastUpdate: TimeInterval = 0
   private var spawnAccumulator: TimeInterval = 0
+
+  private var rng: GKMersenneTwisterRandomSource!
 
   // FX
   private let audio = GameAudio()
@@ -49,6 +52,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     removeAllChildren()
     isDead = false
     score = 0
+
+    // Initialize seeded RNG
+    rng = GKMersenneTwisterRandomSource(seed: seed)
 
     // Subtle grid background
     let bg = SKShapeNode(rect: frame)
@@ -205,7 +211,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
   private func spawnPipePair() {
     let minY: CGFloat = 110
     let maxY: CGFloat = size.height - 140
-    let centerY = CGFloat.random(in: minY...maxY)
+    // Use seeded RNG for deterministic pipe generation
+    let normalizedRandom = CGFloat(rng.nextUniform()) // 0.0...1.0
+    let centerY = minY + normalizedRandom * (maxY - minY)
 
     let topHeight = (size.height - centerY) - (pipeGap/2)
     let bottomHeight = (centerY - (pipeGap/2))
