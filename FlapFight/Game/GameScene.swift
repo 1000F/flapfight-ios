@@ -56,6 +56,54 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     buildScene()
   }
 
+  private func makeBirdNode() -> SKShapeNode {
+    // Main body - circular
+    let container = SKShapeNode(circleOfRadius: 18)
+    container.fillColor = SKColor.white.withAlphaComponent(0.92)
+    container.strokeColor = SKColor.red.withAlphaComponent(0.55)
+    container.lineWidth = 2.5
+
+    // Eye - small black dot
+    let eye = SKShapeNode(circleOfRadius: 3)
+    eye.fillColor = .black
+    eye.strokeColor = .clear
+    eye.position = CGPoint(x: 7, y: 5)
+    eye.name = "eye"
+    container.addChild(eye)
+
+    // Beak - small triangle
+    let beakPath = CGMutablePath()
+    beakPath.move(to: CGPoint(x: 14, y: 0))
+    beakPath.addLine(to: CGPoint(x: 22, y: 2))
+    beakPath.addLine(to: CGPoint(x: 22, y: -2))
+    beakPath.closeSubpath()
+
+    let beak = SKShapeNode(path: beakPath)
+    beak.fillColor = SKColor(red: 1.0, green: 0.6, blue: 0.2, alpha: 0.9)
+    beak.strokeColor = .clear
+    beak.name = "beak"
+    container.addChild(beak)
+
+    // Wing - arc shape that will animate
+    let wingPath = CGMutablePath()
+    wingPath.move(to: CGPoint(x: -8, y: -2))
+    wingPath.addCurve(
+      to: CGPoint(x: -8, y: -12),
+      control1: CGPoint(x: -14, y: -4),
+      control2: CGPoint(x: -14, y: -10)
+    )
+    wingPath.addLine(to: CGPoint(x: -8, y: -2))
+
+    let wing = SKShapeNode(path: wingPath)
+    wing.fillColor = SKColor.white.withAlphaComponent(0.8)
+    wing.strokeColor = SKColor.red.withAlphaComponent(0.4)
+    wing.lineWidth = 1.5
+    wing.name = "wing"
+    container.addChild(wing)
+
+    return container
+  }
+
   private func buildScene() {
     removeAllChildren()
     isDead = false
@@ -85,10 +133,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     // Bird
     let birdRadius: CGFloat = 18
-    bird = SKShapeNode(circleOfRadius: birdRadius)
-    bird.fillColor = SKColor.white.withAlphaComponent(0.92)
-    bird.strokeColor = SKColor.red.withAlphaComponent(0.55)
-    bird.lineWidth = 2.5
+    bird = makeBirdNode()
     bird.position = CGPoint(x: size.width * 0.34, y: size.height * 0.55)
 
     let birdBody = SKPhysicsBody(circleOfRadius: birdRadius)
@@ -104,10 +149,17 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     addChild(bird)
     hasStarted = false
 
+    // Gentle bob animation during ready state
+    let bob = SKAction.sequence([
+      SKAction.moveBy(x: 0, y: 3, duration: 0.25),
+      SKAction.moveBy(x: 0, y: -3, duration: 0.25)
+    ])
+    bird.run(SKAction.repeatForever(bob), withKey: "bob")
+
     // Ghost bird (if replay data provided)
     if let _ = ghostTapTimestamps {
       ghostBird = SKShapeNode(circleOfRadius: 18)
-      ghostBird!.fillColor = SKColor.cyan.withAlphaComponent(0.30)
+      ghostBird!.fillColor = SKColor.cyan.withAlphaComponent(0.50)
       ghostBird!.strokeColor = SKColor.cyan.withAlphaComponent(0.50)
       ghostBird!.lineWidth = 2
       ghostBird!.position = CGPoint(x: size.width * 0.34, y: size.height * 0.55)
@@ -171,6 +223,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
       hasStarted = true
       bird.physicsBody?.isDynamic = true
       ghostBird?.physicsBody?.isDynamic = true
+      bird.removeAction(forKey: "bob")
       childNode(withName: "hint")?.removeFromParent()
       Haptics.flap()
       audio.playFlap()
@@ -187,6 +240,14 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     // flap
     bird.physicsBody?.velocity = CGVector(dx: 0, dy: 0)
     bird.physicsBody?.applyImpulse(CGVector(dx: 0, dy: flapImpulse))
+
+    // Animate wing
+    if let wing = bird.childNode(withName: "wing") {
+      wing.run(SKAction.sequence([
+        SKAction.rotate(byAngle: -0.6, duration: 0.05),
+        SKAction.rotate(byAngle: 0.6, duration: 0.05)
+      ]))
+    }
   }
 
   // Taps handled via SwiftUI onTapGesture → handleTap()
@@ -400,9 +461,17 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     timeScale = 1.0
     physicsWorld.speed = 1.0
 
-    // Freeze bird
-    bird.physicsBody?.velocity = .zero
-    bird.physicsBody?.isDynamic = false
+    // Add death spin
+    bird.physicsBody?.applyAngularImpulse(0.08)
+
+    // Delay freeze to let spin play out
+    run(SKAction.sequence([
+      SKAction.wait(forDuration: 0.4),
+      SKAction.run { [weak self] in
+        self?.bird.physicsBody?.velocity = .zero
+        self?.bird.physicsBody?.isDynamic = false
+      }
+    ]))
 
     // Screen shake
     camera?.run(SKAction.sequence([
