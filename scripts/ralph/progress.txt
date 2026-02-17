@@ -186,3 +186,41 @@ Files changed:
 - Sample rate (sr) of 44100 is standard for iOS audio
 - Build time remains consistent at ~30-40 seconds
 ---
+## 2026-02-17 07:30 MST - US-008
+- Implemented polished death screen with conditional messaging and entrance animations
+- Added bestScore property to GameScene (line ~17)
+- Updated GameContainerView to accept and pass bestScore parameter (line ~6, ~10, ~20)
+- Updated RootView to pass bestScore to GameContainerView (line ~41)
+- Completely rewrote showDeathOverlay() method (lines ~684-771):
+  - Detects new best score and shows "NEW BEST!" badge in gold/yellow (18pt font)
+  - Shows "YOU WIN!" in bright green when challenge mode score >= target
+  - Shows "SO CLOSE!" in orange when challenge mode score < target
+  - Shows "DEAD" in white for standard deaths
+  - Score displays prominently at 38pt font (increased from 14pt subtitle)
+  - Challenge mode shows "X / Y" format comparing score to target
+  - Overlay height adjusts dynamically (160pt standard, 200pt with badge/challenge)
+- Added slide-up entrance animation with bounce effect:
+  - Overlay starts below screen at y: -overlayHeight
+  - Slides up to center over 0.4s with ease-out timing
+  - Bounces with +12/-12pt movement over 0.2s
+- Added pulsing animation for "Tap to restart" text:
+  - Opacity cycles between 0.35 and 0.65
+  - Each fade takes 0.8s (1.6s full cycle)
+  - Uses SKAction.repeatForever for continuous pulse
+
+Files changed:
+- FlapFight/Game/GameScene.swift
+- FlapFight/UI/GameContainerView.swift
+- FlapFight/UI/RootView.swift
+
+**Learnings for future iterations:**
+- bestScore must be passed through the view hierarchy: RootView → GameContainerView → GameScene
+- Dynamic overlay sizing based on content requires calculating yOffset from top and adjusting height
+- Slide-up animation is created by starting off-screen (negative Y) and using SKAction.moveTo
+- Bounce effect is a quick sequence of moveBy actions with positive then negative Y deltas
+- SKAction.fadeAlpha works well for pulsing text effects (opacity animations)
+- Conditional coloring makes the death screen more responsive to player performance
+- New best detection compares score > bestScore (not >=) to avoid showing badge for matching score
+- Challenge win detection requires both targetScore != nil check and score >= target comparison
+- Build succeeds, death screen now provides meaningful feedback based on performance
+---

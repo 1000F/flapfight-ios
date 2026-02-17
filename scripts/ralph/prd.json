@@ -134,7 +134,7 @@
         "Build succeeds"
       ],
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "notes": "showDeathOverlay() in GameScene.swift. Add a bestScore property to GameScene so it can detect new records. Pass bestScore from RootView via GameContainerView."
     },
     {
