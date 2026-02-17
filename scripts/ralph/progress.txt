@@ -158,3 +158,31 @@ Files changed:
 - SKAction.wait + removeFromParent ensures emitters clean up after burst completes
 - Build succeeds, particles add visual punch without affecting performance
 ---
+## 2026-02-17 06:00 MST - US-007
+- Implemented richer procedural sound synthesis with advanced audio techniques
+- Replaced simple tone() method with three specialized synthesis methods:
+  - sweep(): frequency sweep with exponential envelope (lines ~76-105)
+  - chord(): multi-frequency additive synthesis (lines ~107-136)
+  - vibrato(): frequency modulation for shimmer effect (lines ~138-165)
+- Flap sound: 2200→1600 Hz frequency sweep over 80ms with exponential decay
+- Score sound: two-tone chord (880 + 1100 Hz) over 120ms with exponential envelope
+- Death sound: 150→60 Hz low rumble sweep over 200ms
+- Near-miss sound: 2800 Hz with vibrato (±200 Hz at 30 Hz rate) over 60ms
+- All sounds use exponential envelope: pow(1 - progress, 2) for more natural decay
+- Phase accumulation in sweep/vibrato methods prevents discontinuities during freq changes
+- Master volume maintained at 0.3 across all sounds
+
+Files changed:
+- FlapFight/Game/GameFX.swift
+
+**Learnings for future iterations:**
+- Phase accumulation (var phase: Double = 0.0, phase += 2π*freq/sr) is critical for smooth frequency transitions
+- Without phase accumulation, frequency sweeps would have audible clicks/pops at discontinuities
+- Exponential envelopes (pow(1-t, 2)) sound more natural than linear (1-t) for attack/decay
+- For chords, normalize by dividing by frequency count to prevent clipping when summing waveforms
+- Vibrato uses frequency modulation: modulatedFreq = baseFreq + sin(2π*vibRate*t) * vibDepth
+- All synthesis methods still use pre-rendered PCM buffers (AVAudioPCMBuffer) initialized once at startup
+- No audio files needed - everything is still fully procedural
+- Sample rate (sr) of 44100 is standard for iOS audio
+- Build time remains consistent at ~30-40 seconds
+---

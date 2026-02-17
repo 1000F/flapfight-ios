@@ -117,7 +117,7 @@
         "Build succeeds"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": "GameFX.swift GameAudio class. Extend tone() to support freq sweeps (lerp freq over time), chords (sum waveforms), exponential envelopes (pow(1-t/dur, 2))."
     },
     {
