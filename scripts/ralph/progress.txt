@@ -98,3 +98,31 @@ Files changed:
 - zPosition=-2 puts ground behind pipes (which are at default 0) but in front of bg (which is at -10)
 - Build time remains consistent at ~30-40 seconds
 ---
+## 2026-02-17 04:30 MST - US-005
+- Implemented background depth with parallax layers for visual depth
+- Added two parallax layers with seamless scrolling:
+  - Far layer: 8 horizontal lines at 5% opacity, scrolling at 20% of pipe speed
+  - Mid layer: 12 scattered dots at 12% opacity, scrolling at 50% of pipe speed
+- Created makeFarParallaxLayer() helper that generates horizontal line pattern across full screen
+- Created makeMidParallaxLayer() helper that generates scattered circular dots with random Y positions
+- Both layers use the same two-segment seamless looping pattern as ground
+- Far layer at zPosition=-9 (behind background, in front of bg fill at -10)
+- Mid layer at zPosition=-5 (behind ground at -2, in front of far layer)
+- Scrolling only occurs when hasStarted is true (same conditional as pipes and ground)
+- Layers do not obscure bird or pipe visibility due to very low opacity
+
+Files changed:
+- FlapFight/Game/GameScene.swift
+
+**Learnings for future iterations:**
+- Parallax layer properties added at lines 27-30: farLayer1/2 and midLayer1/2
+- makeFarParallaxLayer() helper at lines ~126-141 creates horizontal line pattern
+- makeMidParallaxLayer() helper at lines ~143-160 creates scattered dot pattern
+- Layers initialized in buildScene() at lines ~167-188 (after bg, before ground)
+- Parallax scrolling logic in update() at lines ~380-401 (after ground scrolling)
+- Far layer scrolls at scrollSpeed * 0.2, mid layer at scrollSpeed * 0.5
+- Same seamless loop pattern: when segment goes past -size.width/2, reposition to right of other segment
+- zPosition layering: bg(-10) → far(-9) → mid(-5) → ground(-2) → pipes(0) → bird(default)
+- CGFloat.random() used for dot Y positions to create varied, organic patterns
+- Build succeeds, no performance impact observed from additional layers
+---

@@ -84,7 +84,7 @@
         "Build succeeds"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "Create each layer as a wide SKShapeNode or set of small nodes. Scroll in update() using scaledDt multiplied by the layer's speed factor."
     },
     {
