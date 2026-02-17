@@ -22,6 +22,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
   private var ghostTapIndex = 0
   private var ground = SKNode()
   private var isDead = false
+  private var hasStarted = false
 
   private var score = 0
   private var scoreLabel = SKLabelNode(fontNamed: nil)
@@ -82,38 +83,42 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     addChild(ground)
 
     // Bird
-    bird = SKShapeNode(circleOfRadius: 14)
+    let birdRadius: CGFloat = 18
+    bird = SKShapeNode(circleOfRadius: birdRadius)
     bird.fillColor = SKColor.white.withAlphaComponent(0.92)
     bird.strokeColor = SKColor.red.withAlphaComponent(0.55)
-    bird.lineWidth = 2
+    bird.lineWidth = 2.5
     bird.position = CGPoint(x: size.width * 0.34, y: size.height * 0.55)
 
-    let birdBody = SKPhysicsBody(circleOfRadius: 14)
+    let birdBody = SKPhysicsBody(circleOfRadius: birdRadius)
     birdBody.allowsRotation = true
     birdBody.linearDamping = 0.1
     birdBody.angularDamping = 0.9
     birdBody.categoryBitMask = Category.bird
     birdBody.collisionBitMask = Category.pipe | Category.ground
     birdBody.contactTestBitMask = Category.pipe | Category.score | Category.ground
+    birdBody.isDynamic = false  // Start frozen until first tap
     bird.physicsBody = birdBody
 
     addChild(bird)
+    hasStarted = false
 
     // Ghost bird (if replay data provided)
     if let _ = ghostTapTimestamps {
-      ghostBird = SKShapeNode(circleOfRadius: 14)
+      ghostBird = SKShapeNode(circleOfRadius: 18)
       ghostBird!.fillColor = SKColor.cyan.withAlphaComponent(0.30)
       ghostBird!.strokeColor = SKColor.cyan.withAlphaComponent(0.50)
       ghostBird!.lineWidth = 2
       ghostBird!.position = CGPoint(x: size.width * 0.34, y: size.height * 0.55)
 
-      let ghostBody = SKPhysicsBody(circleOfRadius: 14)
+      let ghostBody = SKPhysicsBody(circleOfRadius: 18)
       ghostBody.allowsRotation = true
       ghostBody.linearDamping = 0.1
       ghostBody.angularDamping = 0.9
       ghostBody.categoryBitMask = 0 // No category
       ghostBody.collisionBitMask = 0 // Pass through everything
       ghostBody.contactTestBitMask = 0 // No contacts
+      ghostBody.isDynamic = false  // Start frozen until first tap
       ghostBird!.physicsBody = ghostBody
 
       addChild(ghostBird!)
@@ -160,6 +165,17 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
       return
     }
 
+    // First tap starts the game (just enable physics, no impulse)
+    if !hasStarted {
+      hasStarted = true
+      bird.physicsBody?.isDynamic = true
+      ghostBird?.physicsBody?.isDynamic = true
+      childNode(withName: "hint")?.removeFromParent()
+      Haptics.flap()
+      audio.playFlap()
+      return
+    }
+
     // Record tap timestamp relative to game start
     let relativeTime = lastUpdate - gameStartTime
     tapTimestamps.append(relativeTime)
@@ -167,16 +183,12 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     Haptics.flap()
     audio.playFlap()
 
-    childNode(withName: "hint")?.removeFromParent()
-
     // flap
     bird.physicsBody?.velocity = CGVector(dx: 0, dy: 0)
     bird.physicsBody?.applyImpulse(CGVector(dx: 0, dy: flapImpulse))
   }
 
-  override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-    handleTap()
-  }
+  // Taps handled via SwiftUI onTapGesture → handleTap()
 
   override func update(_ currentTime: TimeInterval) {
     if lastUpdate == 0 {
@@ -186,7 +198,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     let dt = currentTime - lastUpdate
     lastUpdate = currentTime
 
-    if isDead { return }
+    if isDead || !hasStarted { return }
 
     // Ghost replay
     if let timestamps = ghostTapTimestamps,
@@ -239,8 +251,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
       let birdX = bird.position.x
       enumerateChildNodes(withName: "pipe") { node, stop in
         let halfW = self.pipeWidth / 2
-        guard birdX > node.position.x - halfW - 14,
-              birdX < node.position.x + halfW + 14 else { return }
+        guard birdX > node.position.x - halfW - 18,
+              birdX < node.position.x + halfW + 18 else { return }
 
         let pipeHalfH = node.frame.height / 2
         let topEdge = node.position.y + pipeHalfH
@@ -250,7 +262,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         let distBottom = abs(birdY - bottomEdge)
         let minDist = min(distTop, distBottom)
 
-        if minDist < self.nearMissThreshold && minDist > 14 {
+        if minDist < self.nearMissThreshold && minDist > 18 {
           self.triggerNearMiss()
           self.nearMissCooldown = 0.4
           stop.pointee = true
@@ -311,9 +323,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
   private func pipeNode(height: CGFloat) -> SKShapeNode {
     let n = SKShapeNode(rectOf: CGSize(width: pipeWidth, height: max(10, height)), cornerRadius: 10)
     n.name = "pipe"
-    n.fillColor = SKColor(white: 1, alpha: 0.06)
-    n.strokeColor = SKColor(white: 1, alpha: 0.12)
-    n.lineWidth = 1
+    n.fillColor = SKColor(white: 1, alpha: 0.15)
+    n.strokeColor = SKColor(white: 1, alpha: 0.35)
+    n.lineWidth = 1.5
 
     let body = SKPhysicsBody(rectangleOf: CGSize(width: pipeWidth, height: max(10, height)))
     body.isDynamic = false

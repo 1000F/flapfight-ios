@@ -26,6 +26,8 @@ targets:
         PRODUCT_NAME: FlapFight
         PRODUCT_BUNDLE_IDENTIFIER: com.100f.flapfight
         DEVELOPMENT_ASSET_PATHS: FlapFight/Resources
+        DEVELOPMENT_TEAM: 5U9W272754
+        CODE_SIGN_STYLE: Automatic
     info:
       path: FlapFight/Info.plist
       properties:
