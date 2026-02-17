@@ -6,27 +6,35 @@ struct GameContainerView: View {
   let onGameOver: (Int) -> Void
   let onRestartRequested: () -> Void
 
-  var scene: SKScene {
+  @State private var scene: GameScene
+
+  init(id: UUID, onGameOver: @escaping (Int) -> Void, onRestartRequested: @escaping () -> Void) {
+    self.id = id
+    self.onGameOver = onGameOver
+    self.onRestartRequested = onRestartRequested
+
     let s = GameScene(size: CGSize(width: 390, height: 520))
     s.scaleMode = .resizeFill
     s.isUserInteractionEnabled = true
-    s.onGameOver = { score in
-      onGameOver(score)
-    }
-    s.onRestartRequested = {
-      onRestartRequested()
-    }
-    return s
+    _scene = State(initialValue: s)
   }
 
   var body: some View {
     SpriteView(scene: scene, options: [.ignoresSiblingOrder])
       .id(id)
+      .contentShape(Rectangle())
+      .onTapGesture {
+        scene.handleTap()
+      }
       .clipShape(RoundedRectangle(cornerRadius: 22))
       .overlay(
         RoundedRectangle(cornerRadius: 22)
           .stroke(.white.opacity(0.10), lineWidth: 1)
       )
       .shadow(color: .black.opacity(0.45), radius: 20, x: 0, y: 14)
+      .onAppear {
+        scene.onGameOver = { score in onGameOver(score) }
+        scene.onRestartRequested = { onRestartRequested() }
+      }
   }
 }

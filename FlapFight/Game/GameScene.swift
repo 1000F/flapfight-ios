@@ -101,7 +101,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     spawnAccumulator = 0
   }
 
-  override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+  func handleTap() {
     // Visual debug: flash the bird so we know taps are arriving
     let flash = SKAction.sequence([
       SKAction.run { [weak self] in self?.bird.fillColor = SKColor.red.withAlphaComponent(0.95) },
@@ -120,6 +120,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     // flap
     bird.physicsBody?.velocity = CGVector(dx: 0, dy: 0)
     bird.physicsBody?.applyImpulse(CGVector(dx: 0, dy: flapImpulse))
+  }
+
+  override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    handleTap()
   }
 
   override func update(_ currentTime: TimeInterval) {
