@@ -3,29 +3,42 @@ import Foundation
 struct ChallengeCode: Equatable {
   let seed: UInt64
   let targetScore: Int
+  let tapTimestamps: [TimeInterval]
 
-  /// Encodes the challenge code into a short alphanumeric string
+  /// Encodes the challenge code into a shareable string
   func encode() -> String {
-    // Pack seed (8 bytes) + targetScore (2 bytes) = 10 bytes
-    // Use base32 encoding for URL-safe, human-readable output
+    // Pack: seed (8 bytes) + targetScore (2 bytes) + tap count (1 byte) + delta-encoded taps
+    // Delta encoding: store time differences as UInt16 milliseconds
 
     var bytes: [UInt8] = []
 
     // Encode seed (8 bytes, big-endian)
     bytes.append(contentsOf: withUnsafeBytes(of: seed.bigEndian) { Array($0) })
 
-    // Encode targetScore as UInt16 (2 bytes, big-endian) - supports scores up to 65535
+    // Encode targetScore as UInt16 (2 bytes, big-endian)
     let clampedScore = min(UInt16(targetScore), UInt16.max)
     bytes.append(contentsOf: withUnsafeBytes(of: clampedScore.bigEndian) { Array($0) })
 
-    // Base32 encode (results in ~16 chars for 10 bytes)
+    // Encode tap count (1 byte, max 255 taps)
+    let tapCount = min(UInt8(tapTimestamps.count), UInt8.max)
+    bytes.append(tapCount)
+
+    // Delta encode tap timestamps as milliseconds (2 bytes each)
+    var lastTime: TimeInterval = 0
+    for timestamp in tapTimestamps.prefix(Int(tapCount)) {
+      let deltaMs = UInt16(max(0, min(65535, (timestamp - lastTime) * 1000)))
+      bytes.append(contentsOf: withUnsafeBytes(of: deltaMs.bigEndian) { Array($0) })
+      lastTime = timestamp
+    }
+
+    // Base32 encode
     return Data(bytes).base32EncodedString()
   }
 
-  /// Decodes a challenge code string back to seed + target score
+  /// Decodes a challenge code string
   static func decode(code: String) -> ChallengeCode? {
     guard let data = Data(base32Encoded: code.uppercased()),
-          data.count == 10 else {
+          data.count >= 11 else {
       return nil
     }
 
@@ -35,11 +48,28 @@ struct ChallengeCode: Equatable {
     let seedBytes = bytes[0..<8]
     let seed = seedBytes.withUnsafeBytes { $0.load(as: UInt64.self) }.bigEndian
 
-    // Decode targetScore (last 2 bytes)
+    // Decode targetScore (bytes 8-9)
     let scoreBytes = bytes[8..<10]
     let targetScore = Int(scoreBytes.withUnsafeBytes { $0.load(as: UInt16.self) }.bigEndian)
 
-    return ChallengeCode(seed: seed, targetScore: targetScore)
+    // Decode tap count (byte 10)
+    let tapCount = Int(bytes[10])
+
+    // Decode delta-encoded tap timestamps
+    var tapTimestamps: [TimeInterval] = []
+    var currentTime: TimeInterval = 0
+    var offset = 11
+
+    for _ in 0..<tapCount {
+      guard offset + 1 < bytes.count else { break }
+      let deltaBytes = bytes[offset..<offset+2]
+      let deltaMs = deltaBytes.withUnsafeBytes { $0.load(as: UInt16.self) }.bigEndian
+      currentTime += TimeInterval(deltaMs) / 1000.0
+      tapTimestamps.append(currentTime)
+      offset += 2
+    }
+
+    return ChallengeCode(seed: seed, targetScore: targetScore, tapTimestamps: tapTimestamps)
   }
 }
 

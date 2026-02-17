@@ -64,3 +64,18 @@ Started: 2026-02-16
   - private(set) allows external read access but internal write access
   - Timestamps captured before flap is applied for accurate replay
 ---
+## 2026-02-16 15:55 - US-005
+- Added ghostTapTimestamps property to GameScene
+- Created ghost bird with cyan color at 30% opacity
+- Ghost bird has physics body with all bitmasks set to 0 (passes through everything)
+- Ghost replays taps in update loop by comparing currentTime vs timestamps
+- Ghost removed if it goes out of bounds (dies)
+- Ghost rotation matches player bird for visual consistency
+- Files changed: GameScene.swift
+- Build succeeded
+- **Learnings for future iterations:**
+  - Ghost physics body needs categoryBitMask, collisionBitMask, and contactTestBitMask all set to 0
+  - Ghost uses same gravity and impulse as player bird for identical physics
+  - Track ghostTapIndex to iterate through tap timestamps
+  - Check ghost bounds each frame and remove if dead
+---

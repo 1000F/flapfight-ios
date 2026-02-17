@@ -78,7 +78,7 @@
         "Build succeeds"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "Ghost bird needs its own physics body with contactTestBitMask = 0 and collisionBitMask = 0 so it passes through everything."
     },
     {

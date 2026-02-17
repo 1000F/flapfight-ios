@@ -38,7 +38,7 @@ struct RootView: View {
         GameContainerView(
           id: gameID,
           mode: mode,
-          onGameOver: { score, seed in
+          onGameOver: { score, seed, tapTimestamps in
             lastScore = score
             if score > bestScore {
               bestScore = score
@@ -46,7 +46,7 @@ struct RootView: View {
             }
             // Generate challenge code after classic run
             if case .classic = mode {
-              let challengeCode = ChallengeCode(seed: seed, targetScore: score)
+              let challengeCode = ChallengeCode(seed: seed, targetScore: score, tapTimestamps: tapTimestamps)
               lastChallengeCode = challengeCode.encode()
             }
           },
