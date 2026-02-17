@@ -3,19 +3,32 @@ import SpriteKit
 
 struct GameContainerView: View {
   let id: UUID
-  let onGameOver: (Int) -> Void
+  let mode: GameMode
+  let onGameOver: (Int, UInt64) -> Void
   let onRestartRequested: () -> Void
 
   @State private var scene: GameScene
 
-  init(id: UUID, onGameOver: @escaping (Int) -> Void, onRestartRequested: @escaping () -> Void) {
+  init(id: UUID, mode: GameMode, onGameOver: @escaping (Int, UInt64) -> Void, onRestartRequested: @escaping () -> Void) {
     self.id = id
+    self.mode = mode
     self.onGameOver = onGameOver
     self.onRestartRequested = onRestartRequested
 
     let s = GameScene(size: CGSize(width: 390, height: 520))
     s.scaleMode = .resizeFill
     s.isUserInteractionEnabled = true
+
+    // Set seed and target score based on mode
+    switch mode {
+    case .classic:
+      s.seed = UInt64.random(in: 0...UInt64.max)
+      s.targetScore = nil
+    case .challenge(let challengeCode):
+      s.seed = challengeCode.seed
+      s.targetScore = challengeCode.targetScore
+    }
+
     _scene = State(initialValue: s)
   }
 
@@ -33,7 +46,7 @@ struct GameContainerView: View {
       )
       .shadow(color: .black.opacity(0.45), radius: 20, x: 0, y: 14)
       .onAppear {
-        scene.onGameOver = { score in onGameOver(score) }
+        scene.onGameOver = { score in onGameOver(score, scene.seed) }
         scene.onRestartRequested = { onRestartRequested() }
       }
   }

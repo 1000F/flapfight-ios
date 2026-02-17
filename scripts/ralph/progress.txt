@@ -23,3 +23,16 @@ Started: 2026-02-16
   - RNG must be reinitialized on each buildScene() call to ensure same seed produces same sequence
   - Classic mode automatically gets a random seed via default property initializer
 ---
+## 2026-02-16 15:35 - US-002
+- Created ChallengeCode struct with seed and targetScore properties
+- Implemented encode() method using base32 encoding (~16 chars for 10 bytes)
+- Implemented decode() static method with validation
+- Added custom base32 encoder/decoder extension on Data (RFC 4648 alphabet)
+- Files changed: FlapFight/Game/ChallengeCode.swift (new file)
+- Build succeeded after running xcodegen generate
+- **Learnings for future iterations:**
+  - Base32 encoding produces URL-safe, human-readable strings
+  - 10 bytes (8 for seed + 2 for score) encodes to ~16 characters
+  - Target score limited to UInt16 (65535) - should be plenty for this game
+  - Always run xcodegen generate after adding new .swift files
+---

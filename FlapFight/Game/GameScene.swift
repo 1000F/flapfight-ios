@@ -12,6 +12,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
   // MARK: - State
   var seed: UInt64 = UInt64.random(in: 0...UInt64.max)
+  var targetScore: Int? = nil
   var onGameOver: ((Int) -> Void)?
   var onRestartRequested: (() -> Void)?
 
@@ -93,8 +94,13 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     addChild(bird)
 
     // Score label
-    scoreLabel = SKLabelNode(text: "0")
-    scoreLabel.fontSize = 42
+    if let target = targetScore {
+      scoreLabel = SKLabelNode(text: "0 / \(target)")
+      scoreLabel.fontSize = 36
+    } else {
+      scoreLabel = SKLabelNode(text: "0")
+      scoreLabel.fontSize = 42
+    }
     scoreLabel.fontColor = SKColor.white.withAlphaComponent(0.9)
     scoreLabel.position = CGPoint(x: size.width/2, y: size.height - 90)
     scoreLabel.zPosition = 5
@@ -268,7 +274,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     if mask & Category.score != 0 && mask & Category.bird != 0 {
       score += 1
-      scoreLabel.text = "\(score)"
+      if let target = targetScore {
+        scoreLabel.text = "\(score) / \(target)"
+      } else {
+        scoreLabel.text = "\(score)"
+      }
 
       Haptics.score()
       audio.playScore()
