@@ -10,3 +10,16 @@ Started: 2026-02-16
 - SwiftUI ↔ SpriteKit bridge: GameContainerView wraps SpriteView, forwards taps via handleTap()
 - GameMode enum exists in RootView.swift (.classic only currently)
 ---
+## 2026-02-16 15:30 - US-001
+- Implemented deterministic seeded pipe generation
+- Added public `seed: UInt64` property to GameScene (defaults to random value)
+- Added private `rng: GKMersenneTwisterRandomSource` for seeded random generation
+- Replaced CGFloat.random(in:) with seeded RNG in spawnPipePair()
+- RNG initialized in buildScene() using the seed property
+- Files changed: FlapFight/Game/GameScene.swift
+- Build succeeded
+- **Learnings for future iterations:**
+  - GKMersenneTwisterRandomSource.nextUniform() returns 0.0...1.0, need to scale to desired range
+  - RNG must be reinitialized on each buildScene() call to ensure same seed produces same sequence
+  - Classic mode automatically gets a random seed via default property initializer
+---

@@ -15,7 +15,7 @@
         "Build succeeds: xcodebuild -project FlapFight.xcodeproj -scheme FlapFight -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -quiet build"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "GameScene.swift:171 is where CGFloat.random is used. Use GKMersenneTwisterRandomSource seeded with the seed value."
     },
     {
